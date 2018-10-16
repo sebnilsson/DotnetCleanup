@@ -1,0 +1,36 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+    <LangVersion>7.1</LangVersion>
+    <PackAsTool>True</PackAsTool>
+    <OutputType>Exe</OutputType>
+
+    <ToolCommandName>cleanup</ToolCommandName>
+    <AssemblyName>cleanup</AssemblyName>
+    <PackageId>dotnet-cleanup</PackageId>
+    <PackageVersion>0.5.0</PackageVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <OutputPath>bin\CUSTOM_OUTPUT</OutputPath>
+    <DocumentationFile></DocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="CommandContextAppFactory.cs" />
+    <Compile Remove="EnumerableExtensions.cs" />
+    <Compile Remove="Events\CleanupPathsNoFiles.cs" />
+    <Compile Remove="ITraceWriter.cs" />
+    <Compile Remove="TraceWriter.cs" />
+    <Compile Remove="TraceWriterExtensions.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="KeyLocks" Version="0.8.0" />
+    <PackageReference Include="McMaster.Extensions.CommandLineUtils" Version="2.2.5" />
+    <PackageReference Include="MediatR" Version="5.1.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="2.1.1" />
+  </ItemGroup>
+
+</Project>

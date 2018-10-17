@@ -8,13 +8,19 @@
 
     <ToolCommandName>cleanup</ToolCommandName>
     <AssemblyName>cleanup</AssemblyName>
+
     <PackageId>dotnet-cleanup</PackageId>
     <PackageVersion>0.5.0</PackageVersion>
-  </PropertyGroup>
+    
+    <PackageLicenseUrl>https://github.com/sebnilsson/DotnetCleanup/blob/master/LICENSE</PackageLicenseUrl>
+    <PackageProjectUrl>https://github.com/sebnilsson/DotnetCleanup</PackageProjectUrl>
 
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <OutputPath>bin\CUSTOM_OUTPUT</OutputPath>
-    <DocumentationFile></DocumentationFile>
+    <Authors>Sebastian Nilsson</Authors>
+    <Description>.NET Core Global Tool for cleaning up solution, project or folder</Description>
+    <Summary>.NET Core Global Tool for cleaning up solution, project or folder</Summary>
+
+    <RepositoryUrl>https://github.com/sebnilsson/DotnetCleanup</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
   </PropertyGroup>
 
   <ItemGroup>

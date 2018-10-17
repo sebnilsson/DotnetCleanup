@@ -21,20 +21,25 @@ namespace DotnetCleanup.Events.Handlers
             ApplicationStart notification,
             CancellationToken cancellationToken)
         {
-            _log.Detailed("Cleanup started", ConsoleColors.Info);
-            _log.Detailed();
+            var version = GetAssemblyVersion();
+
+            _log.Normal($"DotnetCleanup v{version}", ConsoleColors.Info);
+            _log.Normal();
 
             return Task.CompletedTask;
         }
 
         public Task Handle(
-            ApplicationEnd notification, 
+            ApplicationEnd notification,
             CancellationToken cancellationToken)
         {
-            _log.Detailed();
-            _log.Detailed("Cleanup ended", ConsoleColors.Info);
-
             return Task.CompletedTask;
+        }
+
+        private static string GetAssemblyVersion()
+        {
+            var version = typeof(Program).Assembly.GetName()?.Version;
+            return $"{version.Major}.{version.Minor}.{version.Build}";
         }
     }
 }

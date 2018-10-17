@@ -81,10 +81,7 @@ namespace DotnetCleanup
             _logLock.RunWithLock(this,
                 () =>
                 {
-                    if (foregroundColor != null)
-                        _console.ForegroundColor = foregroundColor.Value;
-                    if (backgroundColor != null)
-                        _console.BackgroundColor = backgroundColor.Value;
+                    _console.SetColors(foregroundColor, backgroundColor);
 
                     _console.WriteLine(value);
 

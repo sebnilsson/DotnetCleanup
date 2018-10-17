@@ -27,6 +27,8 @@ namespace DotnetCleanup
                 .UseDefaultConventions()
                 .UseConstructorInjection(services);
 
+            app.VersionOptionFromAssemblyAttributes(typeof(Program).Assembly);
+
             app.OnExecute(async () =>
             {
                 var appService =
@@ -36,7 +38,42 @@ namespace DotnetCleanup
                 OnEnd();
             });
 
-            return app.Execute(args);
+            return ExecuteApp(app, args, services);
+        }
+
+        private static int ExecuteApp(
+            CommandLineApplication<CommandContext> app,
+            string[] args,
+            IServiceProvider services)
+        {
+            var console = services.GetService<IConsole>()
+                ?? PhysicalConsole.Singleton;
+
+            try
+            {
+                return app.Execute(args);
+            }
+            catch (CommandParsingException ex)
+            {
+                using (console.ColorContext(ConsoleColors.Error))
+                {
+                    console.WriteLine($"Input error: {ex.Message}");
+                    console.WriteLine();
+                }
+
+                app.ShowHelp();
+
+                return 1;
+            }
+            catch (Exception ex)
+            {
+                using (console.ColorContext(ConsoleColors.Error))
+                {
+                    console.WriteLine($"Unknown error: {ex.Message}");
+                }
+
+                throw;
+            }
         }
 
         private static void OnCancelKeyPress(

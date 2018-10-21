@@ -10,8 +10,7 @@ namespace DotnetCleanup
         public static string GetCleanPath(string path)
         {
             return path?.Replace('\\', SeparatorChar)
-                    .Replace('/', SeparatorChar)
-                    .TrimStart(SeparatorChar);
+                    .Replace('/', SeparatorChar);
         }
     }
 }

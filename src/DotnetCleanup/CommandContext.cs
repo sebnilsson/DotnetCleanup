@@ -39,8 +39,6 @@ namespace DotnetCleanup
                    ? Path
                    : Directory.GetCurrentDirectory();
 
-            Path = PathUtility.GetCleanPath(Path);
-
             TempPath = GetTempPath(TempPath);
         }
 

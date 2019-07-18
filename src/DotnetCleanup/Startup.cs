@@ -4,6 +4,7 @@ using DotnetCleanup.Cleanup;
 using DotnetCleanup.CleanupPaths;
 using DotnetCleanup.Events;
 using DotnetCleanup.Events.Handlers;
+using DotnetCleanup.PostCleanup;
 using DotnetCleanup.SourceLocations;
 using KeyLocks;
 using McMaster.Extensions.CommandLineUtils;
@@ -48,6 +49,7 @@ namespace DotnetCleanup
                 .AddTransient<ProjectPathResolver>()
                 // Cleanup
                 .AddTransient<ICleanupService, CleanupService>()
+                .AddTransient<IPostCleanupService, PostCleanupService>()
                 .AddTransient<DeletionHelper>()
                 .AddTransient<MovingHelper>()
                 // Application

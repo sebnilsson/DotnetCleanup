@@ -22,9 +22,7 @@ namespace DotnetCleanup.Cleanup
             if (_context.NoMove)
                 return cleanupPath;
 
-            var movePath = Path.Combine(
-                _context.TempPath,
-                $"dotnetcleanup-{_context.StartedAt:yyyyMMdd-HHmmss}");
+            var movePath = GetMovePath(cleanupPath);
 
             EnsureDirectory(movePath);
 
@@ -38,6 +36,31 @@ namespace DotnetCleanup.Cleanup
             }
 
             return new PathInfo(movePath);
+        }
+
+        private string GetMovePath(PathInfo cleanupPath)
+        {
+            var cleanupFolder =
+                $"~dotnetcleanup-{_context.StartedAt:yyyyMMdd-HHmmss}";
+
+            var movePath = Path.Combine(_context.TempPath, cleanupFolder);
+
+            var movePathRoot = Path.GetPathRoot(movePath).ToLowerInvariant();
+
+            var cleanupPathRoot =
+                Path
+                    .GetPathRoot(cleanupPath.Value)
+                    .ToLowerInvariant();
+
+            if (movePathRoot == cleanupPathRoot)
+            {
+                return movePath;
+            }
+
+            var parentCleanupPath =
+                PathUtility.GetParentPath(cleanupPath.Value);
+
+            return Path.Combine(parentCleanupPath, cleanupFolder);
         }
 
         private static string MoveDirectory(PathInfo cleanupPath, string movePath)

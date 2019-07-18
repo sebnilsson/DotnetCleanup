@@ -13,5 +13,19 @@ namespace DotnetCleanup
                     .Replace('/', SeparatorChar)
                     .TrimStart(SeparatorChar);
         }
+
+        public static string GetParentPath(string path)
+        {
+            var directoryIndex =
+                path?.LastIndexOf(Path.DirectorySeparatorChar)
+                ?? -1;
+
+            if (directoryIndex < 0)
+            {
+                return null;
+            }
+
+            return path.Substring(0, directoryIndex);
+        }
     }
 }

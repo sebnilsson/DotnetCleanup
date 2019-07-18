@@ -10,8 +10,8 @@
     <AssemblyName>cleanup</AssemblyName>
 
     <PackageId>dotnet-cleanup</PackageId>
-    <PackageVersion>0.5.2</PackageVersion>
-    <Version>0.5.2</Version>
+    <PackageVersion>0.5.5</PackageVersion>
+    <Version>0.5.5</Version>
     
     <PackageLicenseUrl>https://github.com/sebnilsson/DotnetCleanup/blob/master/LICENSE</PackageLicenseUrl>
     <PackageProjectUrl>https://github.com/sebnilsson/DotnetCleanup</PackageProjectUrl>
@@ -35,9 +35,9 @@
 
   <ItemGroup>
     <PackageReference Include="KeyLocks" Version="0.8.0" />
-    <PackageReference Include="McMaster.Extensions.CommandLineUtils" Version="2.2.5" />
-    <PackageReference Include="MediatR" Version="5.1.0" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="2.1.1" />
+    <PackageReference Include="McMaster.Extensions.CommandLineUtils" Version="2.3.4" />
+    <PackageReference Include="MediatR" Version="7.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="2.2.0" />
   </ItemGroup>
 
 </Project>

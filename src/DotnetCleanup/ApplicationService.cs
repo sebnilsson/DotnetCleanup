@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using DotnetCleanup.Cleanup;
 using DotnetCleanup.CleanupPaths;
 using DotnetCleanup.Events;
+using DotnetCleanup.PostCleanup;
 using DotnetCleanup.SourceLocations;
 using McMaster.Extensions.CommandLineUtils;
 using MediatR;
@@ -19,6 +20,7 @@ namespace DotnetCleanup
         private readonly ICleanupService _cleanupService;
         private readonly ICleanupPathsService _cleanupPathsService;
         private readonly ISourceLocationService _sourceLocationService;
+        private readonly IPostCleanupService _postCleanupService;
 
         public ApplicationService(
             CommandContext context,
@@ -26,7 +28,8 @@ namespace DotnetCleanup
             IMediator mediator,
             ISourceLocationService sourceLocationService,
             ICleanupPathsService cleanupPathsService,
-            ICleanupService cleanupService)
+            ICleanupService cleanupService,
+            IPostCleanupService postCleanupService)
         {
             _context = context
                 ?? throw new ArgumentNullException(nameof(context));
@@ -39,6 +42,8 @@ namespace DotnetCleanup
                 ?? throw new ArgumentNullException(nameof(cleanupPathsService));
             _cleanupService = cleanupService
                 ?? throw new ArgumentNullException(nameof(cleanupService));
+            _postCleanupService = postCleanupService
+                ?? throw new ArgumentNullException(nameof(postCleanupService));
         }
 
         public async Task OnExecuteAsync()
@@ -56,7 +61,9 @@ namespace DotnetCleanup
                 var isCleanupConfirmed = ConfirmCleanup();
                 if (isCleanupConfirmed)
                 {
-                    await _cleanupService.Cleanup(cleanupPaths);
+                    var result = await _cleanupService.Cleanup(cleanupPaths);
+
+                    await _postCleanupService.PostCleanup(result);
                 }
             }
 

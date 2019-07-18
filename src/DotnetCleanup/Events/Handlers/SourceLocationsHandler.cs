@@ -6,7 +6,7 @@ using MediatR;
 
 namespace DotnetCleanup.Events.Handlers
 {
-    public class SourceLocationsHandler 
+    public class SourceLocationsHandler
         : INotificationHandler<SourceLocationCompleted>
     {
         private readonly ILog _log;

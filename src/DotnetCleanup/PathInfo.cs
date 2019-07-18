@@ -19,7 +19,7 @@ namespace DotnetCleanup
             _extensionLazy = new Lazy<string>(GetExtension);
             _isFileLazy = new Lazy<bool>(GetIsFile);
         }
-        
+
         private bool GetExists()
         {
             return Directory.Exists(Value) || File.Exists(Value);
@@ -32,7 +32,7 @@ namespace DotnetCleanup
 
         private bool GetIsFile()
         {
-            return 
+            return
                 Exists &&
                 ((File.GetAttributes(Value) & FileAttributes.Directory)
                     != FileAttributes.Directory);

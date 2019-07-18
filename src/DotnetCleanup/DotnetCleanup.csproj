@@ -10,8 +10,8 @@
     <AssemblyName>cleanup</AssemblyName>
 
     <PackageId>dotnet-cleanup</PackageId>
-    <PackageVersion>0.5.5</PackageVersion>
-    <Version>0.5.5</Version>
+    <PackageVersion>0.6.0</PackageVersion>
+    <Version>0.6.0</Version>
     
     <PackageLicenseUrl>https://github.com/sebnilsson/DotnetCleanup/blob/master/LICENSE</PackageLicenseUrl>
     <PackageProjectUrl>https://github.com/sebnilsson/DotnetCleanup</PackageProjectUrl>

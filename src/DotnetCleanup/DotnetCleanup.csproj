@@ -13,7 +13,6 @@
     <PackageVersion>0.6.1</PackageVersion>
     <Version>0.6.1</Version>
     
-    <PackageLicenseUrl>https://github.com/sebnilsson/DotnetCleanup/blob/master/LICENSE</PackageLicenseUrl>
     <PackageProjectUrl>https://github.com/sebnilsson/DotnetCleanup</PackageProjectUrl>
 
     <Authors>Sebastian Nilsson</Authors>
@@ -22,6 +21,7 @@
 
     <RepositoryUrl>https://github.com/sebnilsson/DotnetCleanup</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -38,6 +38,13 @@
     <PackageReference Include="McMaster.Extensions.CommandLineUtils" Version="2.3.4" />
     <PackageReference Include="MediatR" Version="7.0.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="2.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\LICENSE">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
   </ItemGroup>
 
 </Project>

@@ -12,7 +12,7 @@ while the tool keeps cleaning up in background.
 
 ## Installation
 
-Download the [.NET Core SDK 2.1](https://aka.ms/DotNetCore21) or later.
+Download the [.NET Core SDK 3.1](https://aka.ms/DotNetCore31) or later.
 The install the [`dotnet-cleanup`](https://www.nuget.org/packages/dotnet-cleanup)
 .NET Global Tool, using the command-line:
 
@@ -23,7 +23,7 @@ dotnet tool install -g dotnet-cleanup
 ## Usage
 
 ```
-Usage: cleanup [arguments] [options]
+Usage: dotnet cleanup [arguments] [options]
 
 Arguments:
   PATH                  Path to the solution-file, project-file or folder to clean. Defaults to current working directory.
@@ -55,5 +55,5 @@ To cleanup a typical web-project, you can specify the paths
 to be cleaned in the projects like this:
 
 ```
-cleanup -p "bin" -p "obj"  -p "artifacts" -p "npm_modules"
+dotnet cleanup -p "bin" -p "obj"  -p "artifacts" -p "npm_modules"
 ```

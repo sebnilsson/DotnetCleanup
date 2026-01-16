@@ -1,7 +1,4 @@
-﻿using System;
-using System.IO;
-
-namespace DotnetCleanup.Cleanup
+﻿namespace DotnetCleanup.Cleanup
 {
     internal class DeletionHelper
     {

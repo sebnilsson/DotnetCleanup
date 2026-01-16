@@ -1,6 +1,4 @@
-﻿using System.IO;
-
-namespace DotnetCleanup
+﻿namespace DotnetCleanup
 {
     internal static class SolutionFileUtility
     {

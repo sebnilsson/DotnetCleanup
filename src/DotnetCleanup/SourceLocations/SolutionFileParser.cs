@@ -1,7 +1,4 @@
-﻿using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 
 namespace DotnetCleanup.SourceLocations
 {
@@ -25,11 +22,16 @@ namespace DotnetCleanup.SourceLocations
                 .ToList();
 
             var solutionDirectory = Path.GetDirectoryName(solutionFilePath);
+            if (string.IsNullOrWhiteSpace(solutionDirectory))
+            {
+                yield break;
+            }
 
             foreach (var match in matches)
             {
                 var value = match
                     .Groups
+                    .OfType<Group>()
                     .Select(x => x.Value)
                     .ElementAtOrDefault(1);
 

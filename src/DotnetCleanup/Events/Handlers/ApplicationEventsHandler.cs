@@ -39,7 +39,7 @@ namespace DotnetCleanup.Events.Handlers
         private static string GetAssemblyVersion()
         {
             var version = typeof(Program).Assembly.GetName()?.Version;
-            return $"{version.Major}.{version.Minor}.{version.Build}";
+            return version != null ? $"{version.Major}.{version.Minor}.{version.Build}" : "0.0.0";
         }
     }
 }

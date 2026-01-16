@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace DotnetCleanup
+﻿namespace DotnetCleanup
 {
     public static class ConsoleColors
     {

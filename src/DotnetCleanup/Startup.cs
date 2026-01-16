@@ -1,6 +1,4 @@
-﻿using System;
-
-using DotnetCleanup.Cleanup;
+﻿using DotnetCleanup.Cleanup;
 using DotnetCleanup.CleanupPaths;
 using DotnetCleanup.Events;
 using DotnetCleanup.Events.Handlers;

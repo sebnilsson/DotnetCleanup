@@ -1,7 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Threading.Tasks;
-
-namespace DotnetCleanup.Cleanup
+﻿namespace DotnetCleanup.Cleanup
 {
     public interface ICleanupService
     {

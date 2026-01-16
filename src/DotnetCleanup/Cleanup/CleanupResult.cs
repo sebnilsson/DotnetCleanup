@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace DotnetCleanup.Cleanup
+﻿namespace DotnetCleanup.Cleanup
 {
     public class CleanupResult
     {

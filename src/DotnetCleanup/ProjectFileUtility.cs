@@ -1,7 +1,4 @@
-﻿using System.IO;
-using System.Linq;
-
-namespace DotnetCleanup
+﻿namespace DotnetCleanup
 {
     public static class ProjectFileUtility
     {

@@ -29,10 +29,15 @@ namespace DotnetCleanup.CleanupPaths
                 ? Path.GetDirectoryName(sourcePath.Value)
                 : sourcePath.Value;
 
+            if (string.IsNullOrWhiteSpace(directoryPath))
+            {
+                yield break;
+            }
+
             var projectPaths =
                 ProjectFileUtility.IsPathProject(sourcePath.Value)
                     ? ProjectFileParser.GetProjectFilePaths(sourcePath.Value)
-                    : Enumerable.Empty<string>();
+                    : [];
 
             foreach (var projectPath in projectPaths)
             {

@@ -1,29 +1,18 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-
-namespace DotnetCleanup.SourceLocations
+﻿namespace DotnetCleanup.SourceLocations
 {
-    internal class ProjectDirectoryPathProvider
+    internal class ProjectDirectoryPathProvider(
+        SolutionFilePathProvider solutionFilePathProvider,
+        ProjectFilePathProvider projectFilePathProvider)
     {
-        private readonly SolutionFilePathProvider _solutionFilePathProvider;
-        private readonly ProjectFilePathProvider _projectFilePathProvider;
-
-        public ProjectDirectoryPathProvider(
-            SolutionFilePathProvider solutionFilePathProvider,
-            ProjectFilePathProvider projectFilePathProvider)
-        {
-            _solutionFilePathProvider = solutionFilePathProvider
+        private readonly SolutionFilePathProvider _solutionFilePathProvider = solutionFilePathProvider
                 ?? throw new ArgumentNullException(nameof(solutionFilePathProvider));
-            _projectFilePathProvider = projectFilePathProvider
+        private readonly ProjectFilePathProvider _projectFilePathProvider = projectFilePathProvider
                 ?? throw new ArgumentNullException(nameof(projectFilePathProvider));
-        }
 
         public IEnumerable<string> TryGetSourcePaths(string sourcePath)
         {
             if (!Directory.Exists(sourcePath))
-                return null;
+                return [];
 
             var files = Directory.GetFiles(sourcePath);
 
@@ -41,10 +30,10 @@ namespace DotnetCleanup.SourceLocations
                     .TryGetSourcePaths(projectFilePath);
             }
 
-            return new[] { sourcePath };
+            return [sourcePath];
         }
 
-        private static string TryGetSolutionFilePath(
+        private static string? TryGetSolutionFilePath(
             string sourcePath,
             IReadOnlyCollection<string> files)
         {
@@ -63,7 +52,7 @@ namespace DotnetCleanup.SourceLocations
             }
         }
 
-        private static string TryGetProjectFilePath(
+        private static string? TryGetProjectFilePath(
             string sourcePath,
             IReadOnlyCollection<string> files)
         {
@@ -82,7 +71,7 @@ namespace DotnetCleanup.SourceLocations
             }
         }
 
-        private static string TryGetSingleFilePathOfType(
+        private static string? TryGetSingleFilePathOfType(
             Func<string, bool> typePredicate,
             string sourcePath,
             IReadOnlyCollection<string> files)

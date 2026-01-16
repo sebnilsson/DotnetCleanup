@@ -1,6 +1,4 @@
-﻿using System;
-
-using McMaster.Extensions.CommandLineUtils;
+﻿using McMaster.Extensions.CommandLineUtils;
 
 namespace DotnetCleanup
 {

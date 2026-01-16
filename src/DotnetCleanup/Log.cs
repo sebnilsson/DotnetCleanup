@@ -1,30 +1,21 @@
-﻿using System;
-
-using KeyLocks;
+﻿using KeyLocks;
 using McMaster.Extensions.CommandLineUtils;
 
 namespace DotnetCleanup
 {
-    internal class Log : ILog
+    internal class Log(
+        CommandContext context,
+        IConsole console,
+        KeyLock<ILog> logLock) : ILog
     {
-        private readonly KeyLock<ILog> _logLock;
-        private readonly CommandContext _context;
-        private readonly IConsole _console;
-
-        public Log(
-            CommandContext context,
-            IConsole console,
-            KeyLock<ILog> logLock)
-        {
-            _context = context
-                ?? throw new ArgumentNullException(nameof(context));
-            _console = console
-                ?? throw new ArgumentNullException(nameof(console));
-            _logLock = logLock
+        private readonly KeyLock<ILog> _logLock = logLock
                 ?? throw new ArgumentNullException(nameof(logLock));
-        }
+        private readonly CommandContext _context = context
+                ?? throw new ArgumentNullException(nameof(context));
+        private readonly IConsole _console = console
+                ?? throw new ArgumentNullException(nameof(console));
 
-        public void Debug(string value = null)
+        public void Debug(string? value = null)
         {
             Write(
                 LogLevel.Debug,
@@ -34,7 +25,7 @@ namespace DotnetCleanup
         }
 
         public void Detailed(
-            string value = null,
+            string? value = null,
             ConsoleColor? foregroundColor = null,
             ConsoleColor? backgroundColor = null)
         {
@@ -46,7 +37,7 @@ namespace DotnetCleanup
         }
 
         public void Minimal(
-            string value = null,
+            string? value = null,
             ConsoleColor? foregroundColor = null,
             ConsoleColor? backgroundColor = null)
         {
@@ -58,7 +49,7 @@ namespace DotnetCleanup
         }
 
         public void Normal(
-            string value = null,
+            string? value = null,
             ConsoleColor? foregroundColor = null,
             ConsoleColor? backgroundColor = null)
         {
@@ -71,7 +62,7 @@ namespace DotnetCleanup
 
         public void Write(
             LogLevel level,
-            string value = null,
+            string? value = null,
             ConsoleColor? foregroundColor = null,
             ConsoleColor? backgroundColor = null)
         {

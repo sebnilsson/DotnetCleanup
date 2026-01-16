@@ -1,21 +1,13 @@
-﻿using System;
-using System.IO;
-
-using KeyLocks;
+﻿using KeyLocks;
 
 namespace DotnetCleanup.Cleanup
 {
-    internal class MovingHelper
+    internal class MovingHelper(CommandContext context)
     {
         private static readonly NameLock DirectoryLock = new NameLock();
 
-        private readonly CommandContext _context;
-
-        public MovingHelper(CommandContext context)
-        {
-            _context = context
+        private readonly CommandContext _context = context
                 ?? throw new ArgumentNullException(nameof(context));
-        }
 
         public PathInfo Move(PathInfo cleanupPath)
         {
@@ -45,11 +37,11 @@ namespace DotnetCleanup.Cleanup
 
             var movePath = Path.Combine(_context.TempPath, cleanupFolder);
 
-            var movePathRoot = Path.GetPathRoot(movePath).ToLowerInvariant();
+            var movePathRoot = Path.GetPathRoot(movePath)?.ToLowerInvariant();
 
             var cleanupPathRoot =
                 Path
-                    .GetPathRoot(cleanupPath.Value)
+                    .GetPathRoot(cleanupPath.Value)?
                     .ToLowerInvariant();
 
             if (movePathRoot == cleanupPathRoot)
@@ -60,7 +52,10 @@ namespace DotnetCleanup.Cleanup
             var parentCleanupPath =
                 PathUtility.GetParentPath(cleanupPath.Value);
 
-            return Path.Combine(parentCleanupPath, cleanupFolder);
+            // If the cleanup path has no parent (or we can't resolve it), fall back to the temp path.
+            return !string.IsNullOrWhiteSpace(parentCleanupPath)
+                ? Path.Combine(parentCleanupPath, cleanupFolder)
+                : movePath;
         }
 
         private static string MoveDirectory(PathInfo cleanupPath, string movePath)

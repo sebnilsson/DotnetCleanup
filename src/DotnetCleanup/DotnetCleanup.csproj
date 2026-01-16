@@ -1,27 +1,35 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp2.1</TargetFramework>
-    <LangVersion>7.1</LangVersion>
-    <PackAsTool>True</PackAsTool>
+    <TargetFrameworks>net9.0;net10.0</TargetFrameworks>
+    <IsPackable>true</IsPackable>
     <OutputType>Exe</OutputType>
 
-    <ToolCommandName>cleanup</ToolCommandName>
-    <AssemblyName>cleanup</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
 
-    <PackageId>dotnet-cleanup</PackageId>
-    <PackageVersion>0.6.1</PackageVersion>
-    <Version>0.6.1</Version>
-    
-    <PackageProjectUrl>https://github.com/sebnilsson/DotnetCleanup</PackageProjectUrl>
+    <Title>Dotnet Cleanup</Title>
+    <AssemblyName>cleanup</AssemblyName>
+    <PackageId>cleanup</PackageId>
+    <PackageVersion>$(Version)</PackageVersion>
+    <Version>0.7.0</Version>
+
+    <ToolCommandName>cleanup</ToolCommandName>
+    <PackAsTool>True</PackAsTool>
+    <PackageOutputPath>./nupkg</PackageOutputPath>
+
+    <PackageProjectUrl>https://github.com/sebnilsson/DotnetGuid</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+
+    <RepositoryUrl>$(PackageProjectUrl).git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
 
     <Authors>Sebastian Nilsson</Authors>
     <Description>.NET Core Global Tool for cleaning up solution, project or folder</Description>
     <Summary>.NET Core Global Tool for cleaning up solution, project or folder</Summary>
 
-    <RepositoryUrl>https://github.com/sebnilsson/DotnetCleanup</RepositoryUrl>
-    <RepositoryType>git</RepositoryType>
-    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <ItemGroup>

@@ -1,15 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-
-using McMaster.Extensions.CommandLineUtils;
+﻿using McMaster.Extensions.CommandLineUtils;
 
 namespace DotnetCleanup
 {
     public class CommandContext
     {
         [Option("-p|--paths", DescriptionTexts.CleanPaths, CommandOptionType.MultipleValue)]
-        public IReadOnlyCollection<string> CleanPaths { get; private set; }
+        public IReadOnlyCollection<string> CleanPaths { get; private set; } = [];
 
         [Option("-y|--confirm-cleanup", DescriptionTexts.ConfirmCleanup, CommandOptionType.NoValue)]
         public bool ConfirmCleanup { get; }
@@ -21,12 +17,12 @@ namespace DotnetCleanup
         public bool NoMove { get; }
 
         [Argument(0, "PATH", DescriptionTexts.Path)]
-        public string Path { get; private set; }
+        public string Path { get; private set; } = string.Empty;
 
         public DateTimeOffset StartedAt { get; } = DateTimeOffset.UtcNow;
 
         [Option("-t|--temp-path", DescriptionTexts.TempPath, CommandOptionType.SingleValue)]
-        public string TempPath { get; private set; }
+        public string TempPath { get; private set; } = string.Empty;
 
         [Option("-v|--verbosity", DescriptionTexts.Verbosity, CommandOptionType.SingleOrNoValue)]
         public LogLevel Verbosity { get; }

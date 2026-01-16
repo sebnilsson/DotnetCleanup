@@ -1,5 +1,4 @@
-using System;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 
 using McMaster.Extensions.CommandLineUtils;
 using Microsoft.Extensions.DependencyInjection;
@@ -77,7 +76,7 @@ namespace DotnetCleanup
         }
 
         private static void OnCancelKeyPress(
-            object sender,
+            object? sender,
             ConsoleCancelEventArgs e)
         {
             Console.ResetColor();

@@ -1,7 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-
-namespace DotnetCleanup
+﻿namespace DotnetCleanup
 {
     internal static class CommandContextPathUtility
     {

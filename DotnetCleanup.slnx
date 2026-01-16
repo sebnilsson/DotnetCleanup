@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/DotnetCleanup/DotnetCleanup.csproj" />
+  <Project Path="test/DotNetCleanup.Tests/DotNetCleanup.Tests.csproj" />
+</Solution>

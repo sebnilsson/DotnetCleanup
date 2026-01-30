@@ -1,7 +1,7 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net9.0;net10.0</TargetFrameworks>
+    <TargetFramework>net10.0</TargetFramework>
     <IsPackable>true</IsPackable>
     <OutputType>Exe</OutputType>
 
@@ -26,26 +26,20 @@
     <RepositoryType>git</RepositoryType>
 
     <Authors>Sebastian Nilsson</Authors>
-    <Description>.NET Core Global Tool for cleaning up solution, project or folder</Description>
-    <Summary>.NET Core Global Tool for cleaning up solution, project or folder</Summary>
+    <Description>.NET Global Tool for cleaning up build output and dependency folders.</Description>
+    <Summary>.NET Global Tool for cleaning up build output and dependency folders.</Summary>
 
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="CommandContextAppFactory.cs" />
-    <Compile Remove="EnumerableExtensions.cs" />
-    <Compile Remove="Events\CleanupPathsNoFiles.cs" />
-    <Compile Remove="ITraceWriter.cs" />
-    <Compile Remove="TraceWriter.cs" />
-    <Compile Remove="TraceWriterExtensions.cs" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.0" />
+    <PackageReference Include="Spectre.Console.Cli" Version="0.49.1" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="KeyLocks" Version="0.8.0" />
-    <PackageReference Include="McMaster.Extensions.CommandLineUtils" Version="2.3.4" />
-    <PackageReference Include="MediatR" Version="7.0.0" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="2.2.0" />
+    <InternalsVisibleTo Include="DotNetCleanup.Tests" />
+    <InternalsVisibleTo Include="DotnetCleanup.IntegrationTests" />
   </ItemGroup>
 
 </Project>

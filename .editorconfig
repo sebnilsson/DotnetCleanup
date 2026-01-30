@@ -6,6 +6,7 @@ root = true
 # Don't use tabs for indentation.
 [*]
 indent_style = space
+end_of_line = crlf
 # (Please don't specify an indent_size here; that has too many unintended consequences.)
 spelling_exclusion_path = SpellingExclusions.dic
 
@@ -35,6 +36,10 @@ indent_size = 2
 [*.sh]
 end_of_line = lf
 indent_size = 2
+
+# Git hooks (sh)
+[.githooks/*]
+end_of_line = lf
 
 # Dotnet code style settings:
 [*.{cs,vb}]

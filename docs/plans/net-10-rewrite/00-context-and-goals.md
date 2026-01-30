@@ -14,12 +14,12 @@
 - Exit code is `0` on success, `1` if errors occur.
 
 ## Goals
-- [ ] Keep the main flow explicit in `CleanupService.RunAsync`, with all console output there.
-- [ ] Simplify architecture and namespaces; avoid unnecessary small files.
-- [ ] Keep interfaces only for disk I/O to enable unit testing.
-- [ ] Remove MediatR, McMaster.Extensions.CommandLineUtils, KeyLocks, and custom logging.
-- [ ] Use Spectre.Console.Cli for CLI parsing and Microsoft.Extensions.Logging for logging.
-- [ ] Add or expand integration tests for CLI behavior.
+- [x] Keep the main flow explicit in `CleanupService.RunAsync`, with all console output there.
+- [x] Simplify architecture and namespaces; avoid unnecessary small files.
+- [x] Keep interfaces only for disk I/O to enable unit testing.
+- [x] Remove MediatR, McMaster.Extensions.CommandLineUtils, KeyLocks, and custom logging.
+- [x] Use Spectre.Console.Cli for CLI parsing and Microsoft.Extensions.Logging for logging.
+- [x] Add or expand integration tests for CLI behavior.
 
 ## Non-goals
 - Keep existing CLI option names and defaults unless Spectre forces a change.

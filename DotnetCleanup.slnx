@@ -9,4 +9,5 @@
   </Folder>
   <Project Path="src/DotnetCleanup/DotnetCleanup.csproj" />
   <Project Path="test/DotNetCleanup.Tests/DotNetCleanup.Tests.csproj" />
+  <Project Path="test/DotnetCleanup.IntegrationTests/DotnetCleanup.IntegrationTests.csproj" />
 </Solution>

@@ -1,2 +1,8 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# Auto detect text files and normalize to CRLF on checkout.
+* text=auto eol=crlf
+
+# Keep shell scripts LF.
+*.sh text eol=lf
+
+# Git hooks must be LF for sh.
+.githooks/* text eol=lf

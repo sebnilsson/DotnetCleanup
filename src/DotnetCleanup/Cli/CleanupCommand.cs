@@ -10,22 +10,22 @@ public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
 
     public override async Task<int> ExecuteAsync(CommandContext context, CleanupSettings settings, CancellationToken cancellationToken)
     {
-        console.WriteVerbosityNormal(":broom: Cleanup started", settings);
+        WriteVerbosityNormal(":broom: Cleanup started");
 
         service.OnListPathsStepStart += () =>
         {
-            console.WriteVerbosityDetailed(":magnifying_glass_tilted_right: Listing files...", settings);
+            WriteVerbosityDetailed(":magnifying_glass_tilted_right: Listing files...");
         };
 
         service.OnMovePathsStepStart += () =>
         {
             if (settings.SkipMove)
             {
-                console.WriteVerbosityNormal("[cyan]Skipping moving files[/]", settings);
+                WriteVerbosityNormal("[cyan]Skipping moving files[/]");
             }
             else
             {
-                console.WriteVerbosityDetailed(":open_file_folder: Moving files...", settings);
+                WriteVerbosityDetailed(":open_file_folder: Moving files...");
             }
         };
 
@@ -33,11 +33,11 @@ public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
         {
             if (settings.SkipDelete)
             {
-                console.WriteVerbosityNormal("[cyan]Skipping deleting files[/]", settings);
+                WriteVerbosityNormal("[cyan]Skipping deleting files[/]");
             }
             else
             {
-                console.WriteVerbosityDetailed(":cross_mark: Deleting files...", settings);
+                WriteVerbosityDetailed(":cross_mark: Deleting files...");
             }
         };
 
@@ -49,7 +49,7 @@ public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
                 return;
             }
 
-            console.WriteVerbosityNormal($"[blue]{step.Successes.Count} files found[/]", settings);
+            WriteVerbosityNormal($"[blue]{step.Successes.Count} files found[/]");
         };
 
         service.OnMovePathsStepDone += (step) =>
@@ -122,20 +122,36 @@ public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
 
         void WriteOnPath(PathInfo path, string color, string errorText)
         {
-            if (path.Exception == null)
+            lock (s_consoleWriteLock)
             {
-                if (settings.IsVerbosityDetailed())
+                if (path.Exception == null)
                 {
-                    console.MarkupLine($"[{color}]{path.Value}[/]");
+                    if (settings.IsVerbosityDetailed())
+                    {
+                        console.MarkupLine($"[{color}]{path.Value}[/]");
+                    }
                 }
-            }
-            else
-            {
-                lock (s_consoleWriteLock)
+                else
                 {
                     console.MarkupLine($"[red]{errorText}: {path.Value}[/]");
                     console.WriteException(path.Exception, ExceptionFormats.NoStackTrace);
                 }
+            }
+        }
+
+        void WriteVerbosityDetailed(string message)
+        {
+            if (settings.IsVerbosityDetailed())
+            {
+                console.MarkupLine(message);
+            }
+        }
+
+        void WriteVerbosityNormal(string message)
+        {
+            if (settings.IsVerbosityNormal())
+            {
+                console.MarkupLine(message);
             }
         }
     }

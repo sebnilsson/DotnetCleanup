@@ -11,19 +11,19 @@ public sealed class CleanupService(FileSystemService fileSystemService)
 
     public delegate void StepStartHandler();
 
-    public event PathHandler? OnGetPath;
+    public event PathHandler? OnListPath;
 
     public event PathHandler? OnMovePath;
 
     public event PathHandler? OnDeletePath;
 
-    public event StepStartHandler? OnGetPathsStepStart;
+    public event StepStartHandler? OnListPathsStepStart;
 
     public event StepStartHandler? OnMovePathsStepStart;
 
     public event StepStartHandler? OnDeletePathsStepStart;
 
-    public event StepDoneHandler? OnGetPathsStepDone;
+    public event StepDoneHandler? OnListPathsStepDone;
 
     public event StepDoneHandler? OnMovePathsStepDone;
 
@@ -33,24 +33,26 @@ public sealed class CleanupService(FileSystemService fileSystemService)
     {
         fileSystemService.ValidateSettings(settings);
 
-        var pathsResult = GetPaths(settings, cancellationToken);
+        var listResult = ListPaths(settings, cancellationToken);
 
         var isConfirmed = onConfirmCallback();
         if (!isConfirmed)
         {
-            return new CleanupResult(pathsResult);
+            return new CleanupResult(listResult);
         }
 
-        var moveResult = MovePaths(pathsResult.Successes, settings, cancellationToken);
+        var tempPath = fileSystemService.EnsureTempDirectory(settings);
 
-        var deleteResult = DeletePaths(moveResult.Successes, settings, cancellationToken);
+        var moveResult = MovePaths(tempPath, listResult.Successes, settings, cancellationToken);
 
-        return new CleanupResult(pathsResult, moveResult, deleteResult);
+        var deleteResult = DeletePaths(tempPath, moveResult.Successes, settings, cancellationToken);
+
+        return new CleanupResult(listResult, moveResult, deleteResult);
     }
 
-    private CleanupStep GetPaths(CleanupSettings settings, CancellationToken cancellationToken)
+    private CleanupStep ListPaths(CleanupSettings settings, CancellationToken cancellationToken)
     {
-        OnGetPathsStepStart?.Invoke();
+        OnListPathsStepStart?.Invoke();
 
         CleanupStep step = new();
 
@@ -58,19 +60,19 @@ public sealed class CleanupService(FileSystemService fileSystemService)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var isAdded = path.Exception != null ? step.Successes.Add(path) : step.Errors.Add(path);
+            var isAdded = path.Exception == null ? step.AddSuccess(path) : step.AddError(path);
             if (isAdded)
             {
-                OnGetPath?.Invoke(path);
+                OnListPath?.Invoke(path);
             }
         }
 
-        OnGetPathsStepDone?.Invoke(step);
+        OnListPathsStepDone?.Invoke(step);
 
         return step;
     }
 
-    private CleanupStep MovePaths(ISet<PathInfo> paths, CleanupSettings settings, CancellationToken cancellationToken)
+    private CleanupStep MovePaths(string tempPath, ISet<PathInfo> paths, CleanupSettings settings, CancellationToken cancellationToken)
     {
         OnMovePathsStepStart?.Invoke();
 
@@ -82,9 +84,9 @@ public sealed class CleanupService(FileSystemService fileSystemService)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var movePath = fileSystemService.MovePath(path, settings);
+                var movePath = fileSystemService.MovePath(tempPath, path, settings);
 
-                var isAdded = movePath.Exception != null ? step.Successes.Add(movePath) : step.Errors.Add(movePath);
+                var isAdded = movePath.Exception == null ? step.AddSuccess(movePath) : step.AddError(movePath);
                 if (isAdded)
                 {
                     OnMovePath?.Invoke(movePath);
@@ -97,7 +99,7 @@ public sealed class CleanupService(FileSystemService fileSystemService)
         return step;
     }
 
-    private CleanupStep DeletePaths(ISet<PathInfo> deletePaths, CleanupSettings settings, CancellationToken cancellationToken)
+    private CleanupStep DeletePaths(string tempPath, ISet<PathInfo> deletePaths, CleanupSettings settings, CancellationToken cancellationToken)
     {
         OnDeletePathsStepStart?.Invoke();
 
@@ -105,18 +107,33 @@ public sealed class CleanupService(FileSystemService fileSystemService)
 
         if (!settings.SkipDelete)
         {
-            Parallel.ForEach(deletePaths, path =>
+            if (settings.SkipMove)
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                Parallel.ForEach(deletePaths, path =>
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
 
-                var deletePath = fileSystemService.DeletePath(path);
+                    var deletePath = fileSystemService.DeletePath(path);
 
-                var isAdded = deletePath.Exception != null ? step.Successes.Add(deletePath) : step.Errors.Add(deletePath);
+                    var isAdded = deletePath.Exception == null ? step.AddSuccess(deletePath) : step.AddError(deletePath);
+                    if (isAdded)
+                    {
+                        OnDeletePath?.Invoke(deletePath);
+                    }
+                });
+            }
+            else
+            {
+                var temp = new PathInfo(tempPath, isFile: false);
+
+                var deletePath = fileSystemService.DeletePath(temp);
+
+                var isAdded = deletePath.Exception == null ? step.AddSuccess(deletePath) : step.AddError(deletePath);
                 if (isAdded)
                 {
                     OnDeletePath?.Invoke(deletePath);
                 }
-            });
+            }
         }
 
         OnDeletePathsStepDone?.Invoke(step);

@@ -4,8 +4,6 @@ public static class PathUtility
 {
     private static readonly char s_directorySeparatorChar = Path.DirectorySeparatorChar;
 
-    public static string CreateTempDirectoryName(DateTimeOffset dateTime) => $"~dotnetcleanup-{dateTime:yyyyMMdd-HHmmss}";
-
     public static string? GetNormalizedPath(string? path)
     {
         var normalized = path?.Replace('\\', s_directorySeparatorChar)

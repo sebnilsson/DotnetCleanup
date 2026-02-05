@@ -5,6 +5,8 @@ namespace DotnetCleanup.IO;
 
 public class FileSystemService(IFileSystem fileSystem)
 {
+    private static readonly Lock s_createDirectoryLock = new();
+
     public IEnumerable<PathInfo> GetPaths(CleanupSettings settings, CancellationToken cancellationToken)
     {
         var matcher = new Matcher(StringComparison.OrdinalIgnoreCase);
@@ -14,7 +16,7 @@ public class FileSystemService(IFileSystem fileSystem)
         return GetPathsInternal(settings.Path, new PathInfo(settings.Path, isFile: false), matcher, cancellationToken);
     }
 
-    public PathInfo MovePath(PathInfo path, CleanupSettings settings)
+    public PathInfo MovePath(string tempPath, PathInfo path, CleanupSettings settings)
     {
         var relativePath = PathUtility.GetRelativePath(settings.Path, path.Value);
         if (string.IsNullOrWhiteSpace(relativePath))
@@ -22,21 +24,25 @@ public class FileSystemService(IFileSystem fileSystem)
             throw new ArgumentOutOfRangeException(nameof(path), $"Failed to resolve relative path for the given path: {path.Value}");
         }
 
-        var targetPath = Path.Combine(settings.TempPath, relativePath);
+        var targetPath = Path.Combine(tempPath, relativePath);
         var movePath = new PathInfo(targetPath, path.IsFile);
 
         try
         {
             if (path.IsFile)
             {
+                EnsureDirectory(movePath.Parent);
+
                 fileSystem.MoveFile(path.Value, movePath.Value);
             }
             else
             {
+                EnsureDirectory(movePath.Parent);
+
                 fileSystem.MoveDirectory(path.Value, movePath.Value);
             }
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
             movePath.SetException(ex);
         }
@@ -47,6 +53,7 @@ public class FileSystemService(IFileSystem fileSystem)
     public PathInfo DeletePath(PathInfo path)
     {
         var delete = new PathInfo(path.Value, path.IsFile);
+
         try
         {
             if (delete.IsFile)
@@ -58,12 +65,24 @@ public class FileSystemService(IFileSystem fileSystem)
                 fileSystem.DeleteDirectory(delete.Value);
             }
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
             delete.SetException(ex);
         }
 
         return delete;
+    }
+
+    public string EnsureTempDirectory(CleanupSettings settings)
+    {
+        var path = Path.Combine(settings.TempPath, $"~dotnetcleanup-{settings.StartedAt:yyyyMMdd-HHmmss}");
+
+        if (!fileSystem.DirectoryExists(path))
+        {
+            fileSystem.CreateDirectory(path);
+        }
+
+        return path;
     }
 
     public void ValidateSettings(CleanupSettings settings)
@@ -79,6 +98,20 @@ public class FileSystemService(IFileSystem fileSystem)
         if (!fileSystem.DirectoryExists(settings.TempPath))
         {
             throw new DirectoryNotFoundException($"The given temporary path does not exist: {settings.TempPath}");
+        }
+    }
+
+    private void EnsureDirectory(string path)
+    {
+        if (!fileSystem.DirectoryExists(path))
+        {
+            lock (s_createDirectoryLock)
+            {
+                if (!fileSystem.DirectoryExists(path))
+                {
+                    fileSystem.CreateDirectory(path);
+                }
+            }
         }
     }
 
@@ -127,15 +160,16 @@ public class FileSystemService(IFileSystem fileSystem)
             if (MatchPath(rootDirectory, directory, matcher))
             {
                 yield return new PathInfo(directory, isFile: false);
-                yield break;
             }
-
-            var subDirectory = new PathInfo(directory, isFile: false);
-            foreach (var subPath in GetPathsInternal(rootDirectory, subDirectory, matcher, cancellationToken))
+            else
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                var subDirectory = new PathInfo(directory, isFile: false);
+                foreach (var subPath in GetPathsInternal(rootDirectory, subDirectory, matcher, cancellationToken))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
 
-                yield return subPath;
+                    yield return subPath;
+                }
             }
         }
     }

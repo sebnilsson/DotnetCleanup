@@ -4,27 +4,34 @@ using Spectre.Console.Cli;
 
 namespace DotnetCleanup.Cli;
 
-public sealed partial class CleanupSettings(IFileSystem fileSystem) : CommandSettings
+public sealed partial class CleanupSettings : CommandSettings
 {
-    public const string DefaultIncludePaths = "bin, obj, node_modules";
+    public const string DefaultIncludePaths = "**/bin, **/obj, **/node_modules";
 
     public readonly string[] DefaultIncludePathList = DefaultIncludePaths.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
+    public CleanupSettings(IFileSystem fileSystem)
+    {
+        Path = fileSystem.GetCurrentDirectory();
+        Include = DefaultIncludePathList;
+        TempPath = fileSystem.GetTempPath();
+    }
+
     [CommandArgument(0, "[PATH]")]
     [Description("The starting path for the cleanup.")]
-    public string Path { get; init; } = fileSystem.GetCurrentDirectory();
-
-    [CommandOption("-y|--yes|--confirm")]
-    [Description("Run cleanup without prompt.")]
-    public bool ConfirmCleanup { get; init; }
+    public string Path { get; init; }
 
     [CommandOption("-p|--include <PATTERNS>")]
     [Description($"Glob paths to include in cleanup. Default paths: {DefaultIncludePaths}.")]
-    public string[] Include { get; init; } = [];
+    public string[] Include { get; init; }
 
     [CommandOption("-x|--exclude <PATTERNS>")]
     [Description("Glob paths to exclude from cleanup.")]
     public string[] Exclude { get; init; } = [];
+
+    [CommandOption("-y|--yes|--confirm")]
+    [Description("Run cleanup skipping confirm prompt.")]
+    public bool SkipConfirm { get; init; }
 
     [CommandOption("--noop|--whatif|--what-if")]
     [Description("Skip deleting files.")]
@@ -38,7 +45,7 @@ public sealed partial class CleanupSettings(IFileSystem fileSystem) : CommandSet
 
     [CommandOption("--temp-path <PATH>")]
     [Description("Temporary path to move cleanup files before deletion.")]
-    public string TempPath { get; init; } = fileSystem.GetTempPath();
+    public string TempPath { get; init; }
 
     [CommandOption("-v|--verbosity <LEVEL>")]
     [Description("Sets the verbosity level. Allowed values are minimal (m), normal (n) and detailed (d).")]

@@ -13,7 +13,7 @@
     <AssemblyName>cleanup</AssemblyName>
     <PackageId>cleanup</PackageId>
     <PackageVersion>$(Version)</PackageVersion>
-    <Version>0.7.0</Version>
+    <Version>1.0.0</Version>
 
     <ToolCommandName>cleanup</ToolCommandName>
     <PackAsTool>True</PackAsTool>

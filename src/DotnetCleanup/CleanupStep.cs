@@ -6,6 +6,10 @@ public sealed record CleanupStep
 
     public ISet<PathInfo> Errors { get; } = new HashSet<PathInfo>(new PathInfoComparer());
 
+    public bool AddSuccess(PathInfo path) => Successes.Add(path);
+
+    public bool AddError(PathInfo path) => Errors.Add(path);
+
     private class PathInfoComparer : IEqualityComparer<PathInfo>
     {
         private static StringComparer GetPathComparer() =>

@@ -6,49 +6,50 @@ namespace DotnetCleanup.Cli;
 public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
     : AsyncCommand<CleanupSettings>
 {
+    private static readonly Lock s_consoleWriteLock = new();
+
     public override async Task<int> ExecuteAsync(CommandContext context, CleanupSettings settings, CancellationToken cancellationToken)
     {
-        if (settings.IsVerbosityDetailed())
-        {
-            console.MarkupLine("Cleanup started");
-        }
+        console.WriteVerbosityNormal(":broom: Cleanup started", settings);
 
-        service.OnGetPathsStepStart += () =>
+        service.OnListPathsStepStart += () =>
         {
-            if (settings.IsVerbosityDetailed())
-            {
-                console.MarkupLine($"[blue]Get step started.[/]");
-            }
-        };
-
-        service.OnGetPathsStepDone += (step) =>
-        {
-            if (step.Successes.Count == 0)
-            {
-                console.MarkupLine("[yellow]No files found[/]");
-            }
-            else if (settings.IsVerbosityNormal())
-            {
-                console.MarkupLine($"[blue]{step.Successes.Count} files found[/]");
-            }
+            console.WriteVerbosityDetailed(":magnifying_glass_tilted_right: Listing files...", settings);
         };
 
         service.OnMovePathsStepStart += () =>
         {
             if (settings.SkipMove)
             {
-                if (settings.IsVerbosityNormal())
-                {
-                    console.MarkupLine($"[cyan]Skipping moving files[/]");
-                }
+                console.WriteVerbosityNormal("[cyan]Skipping moving files[/]", settings);
             }
             else
             {
-                if (settings.IsVerbosityDetailed())
-                {
-                    console.MarkupLine($"Moving files...");
-                }
+                console.WriteVerbosityDetailed(":open_file_folder: Moving files...", settings);
             }
+        };
+
+        service.OnDeletePathsStepStart += () =>
+        {
+            if (settings.SkipDelete)
+            {
+                console.WriteVerbosityNormal("[cyan]Skipping deleting files[/]", settings);
+            }
+            else
+            {
+                console.WriteVerbosityDetailed(":cross_mark: Deleting files...", settings);
+            }
+        };
+
+        service.OnListPathsStepDone += (step) =>
+        {
+            if (step.Successes.Count == 0)
+            {
+                console.MarkupLine("[yellow]No files found[/]");
+                return;
+            }
+
+            console.WriteVerbosityNormal($"[blue]{step.Successes.Count} files found[/]", settings);
         };
 
         service.OnMovePathsStepDone += (step) =>
@@ -58,25 +59,7 @@ public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
                 if (settings.IsVerbosityDetailed())
                 {
                     console.MarkupLine($"[blue]Move step completed.[/]");
-                    console.MarkupLine($"  [blue]{step.Successes.Count} succeeded[/], [red]{step.Errors.Count} failed[/]");
-                }
-            }
-        };
-
-        service.OnDeletePathsStepStart += () =>
-        {
-            if (settings.SkipDelete)
-            {
-                if (settings.IsVerbosityNormal())
-                {
-                    console.MarkupLine($"[cyan]Skipping deleting files[/]");
-                }
-            }
-            else
-            {
-                if (settings.IsVerbosityDetailed())
-                {
-                    console.MarkupLine($"Deleting files...");
+                    console.MarkupLine(GetStepSuccessErrorText(step));
                 }
             }
         };
@@ -88,64 +71,28 @@ public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
                 if (settings.IsVerbosityDetailed())
                 {
                     console.MarkupLine($"[blue]Delete step completed.[/]");
-                    console.MarkupLine($"  [blue]{step.Successes.Count} succeeded[/], [red]{step.Errors.Count} failed[/]");
+                    console.MarkupLine(GetStepSuccessErrorText(step));
                 }
             }
         };
 
-        service.OnGetPath += (path) =>
+        service.OnListPath += (path) =>
         {
-            if (path.Exception == null)
-            {
-                if (settings.IsVerbosityNormal())
-                {
-                    console.MarkupLine($"[gray]{path.Normalized}[/]");
-                }
-            }
-            else
-            {
-                console.MarkupLine($"[red]Error processing: {path.Value}[/]");
-                console.WriteException(path.Exception, ExceptionFormats.ShortenEverything);
-            }
+            WriteOnPath(path, "gray", "Error listing");
         };
 
         service.OnMovePath += (path) =>
         {
-            if (path.Exception == null)
-            {
-                if (settings.IsVerbosityDetailed())
-                {
-                    console.MarkupLine($"[cyan]{path.Normalized}[/]");
-                }
-            }
-            else
-            {
-                console.MarkupLine($"[red]Error moving: {path.Value}[/]");
-                console.WriteException(path.Exception, ExceptionFormats.ShortenEverything);
-            }
+            WriteOnPath(path, "cyan", "Error moving");
         };
-
         service.OnDeletePath += (path) =>
         {
-            if (path.Exception == null)
-            {
-                if (settings.IsVerbosityDetailed())
-                {
-                    console.MarkupLine($"[Purple_1]{path.Normalized}[/]");
-                }
-            }
-            else
-            {
-                console.MarkupLine($"[red]Error deleting: {path.Value}[/]");
-                console.WriteException(path.Exception, ExceptionFormats.ShortenEverything);
-            }
+            WriteOnPath(path, "Purple_1", "Error deleting");
         };
 
         var result = service.Cleanup(() =>
         {
-            var runCleanup = !settings.ConfirmCleanup || console.Confirm("Proceed with the cleanup?", defaultValue: false);
-
-            if (settings.ConfirmCleanup)
+            if (!settings.SkipConfirm)
             {
                 var isConfirmed = console.Confirm("Proceed with the cleanup?", defaultValue: false);
 
@@ -164,13 +111,39 @@ public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
         settings,
         cancellationToken);
 
-        console.MarkupLine($"[green]Cleanup process completed.[/]");
+        console.MarkupLine($"[green]:check_mark:  Cleanup process completed.[/]");
 
         if (settings.IsVerbosityNormal() && result.DeleteStep != null)
         {
-            console.MarkupLine($"  [green]{result.DeleteStep.Successes.Count} succeeded[/], [red]{result.DeleteStep.Errors.Count} failed[/]");
+            console.MarkupLine(GetStepSuccessErrorText(result.DeleteStep, successColor: "green"));
         }
 
         return 0;
+
+        void WriteOnPath(PathInfo path, string color, string errorText)
+        {
+            if (path.Exception == null)
+            {
+                if (settings.IsVerbosityDetailed())
+                {
+                    console.MarkupLine($"[{color}]{path.Value}[/]");
+                }
+            }
+            else
+            {
+                lock (s_consoleWriteLock)
+                {
+                    console.MarkupLine($"[red]{errorText}: {path.Value}[/]");
+                    console.WriteException(path.Exception, ExceptionFormats.NoStackTrace);
+                }
+            }
+        }
+    }
+
+    private static string GetStepSuccessErrorText(CleanupStep step, string successColor = "blue")
+    {
+        var errorText = step.Errors.Count > 0 ? $" [red]{step.Errors.Count} failed.[/]" : string.Empty;
+
+        return $"  [{successColor}]{step.Successes.Count} succeeded.[/]{errorText}";
     }
 }

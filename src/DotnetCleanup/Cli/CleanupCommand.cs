@@ -52,43 +52,12 @@ public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
             WriteVerbosityNormal($"[blue]{step.Successes.Count} files found[/]");
         };
 
-        service.OnMovePathsStepDone += (step) =>
-        {
-            if (!settings.SkipMove)
-            {
-                if (settings.IsVerbosityDetailed())
-                {
-                    console.MarkupLine($"[blue]Move step completed.[/]");
-                    console.MarkupLine(GetStepSuccessErrorText(step));
-                }
-            }
-        };
+        service.OnMovePathsStepDone += (step) => WriteStepCompleted(settings.SkipMove, step, "Move");
+        service.OnDeletePathsStepDone += (step) => WriteStepCompleted(settings.SkipDelete, step, "Delete");
 
-        service.OnDeletePathsStepDone += (step) =>
-        {
-            if (!settings.SkipDelete)
-            {
-                if (settings.IsVerbosityDetailed())
-                {
-                    console.MarkupLine($"[blue]Delete step completed.[/]");
-                    console.MarkupLine(GetStepSuccessErrorText(step));
-                }
-            }
-        };
-
-        service.OnListPath += (path) =>
-        {
-            WriteOnPath(path, "gray", "Error listing");
-        };
-
-        service.OnMovePath += (path) =>
-        {
-            WriteOnPath(path, "cyan", "Error moving");
-        };
-        service.OnDeletePath += (path) =>
-        {
-            WriteOnPath(path, "Purple_1", "Error deleting");
-        };
+        service.OnListPath += (path) => WriteOnPath(path, "gray", "Error listing");
+        service.OnMovePath += (path) => WriteOnPath(path, "cyan", "Error moving");
+        service.OnDeletePath += (path) => WriteOnPath(path, "Purple_1", "Error deleting");
 
         var result = service.Cleanup(() =>
         {
@@ -115,7 +84,7 @@ public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
 
         if (settings.IsVerbosityNormal() && result.DeleteStep != null)
         {
-            console.MarkupLine(GetStepSuccessErrorText(result.DeleteStep, successColor: "green"));
+            WriteStepSummary(result.DeleteStep, "green");
         }
 
         return 0;
@@ -137,6 +106,26 @@ public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
                     console.WriteException(path.Exception, ExceptionFormats.NoStackTrace);
                 }
             }
+        }
+
+        void WriteStepCompleted(bool skipStep, CleanupStep step, string stepName, string color = "blue")
+        {
+            if (!skipStep && settings.IsVerbosityDetailed())
+            {
+                if (step.Successes.Count == 0)
+                {
+                    console.MarkupLine("[yellow]No files found[/]");
+                    return;
+                }
+
+                console.MarkupLine($"[{color}]{stepName} step completed.[/]");
+                WriteStepSummary(step);
+            }
+        }
+
+        void WriteStepSummary(CleanupStep step, string successColor = "blue")
+        {
+            console.MarkupLine(GetStepSuccessErrorText(step, successColor));
         }
 
         void WriteVerbosityDetailed(string message)

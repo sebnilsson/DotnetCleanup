@@ -4,10 +4,17 @@
     <File Path=".gitattributes" />
     <File Path=".gitignore" />
     <File Path="AGENTS.md" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
     <File Path="global.json" />
     <File Path="README.md" />
   </Folder>
-  <Project Path="src/DotnetCleanup/DotnetCleanup.csproj" />
-  <Project Path="test/DotNetCleanup.Tests/DotNetCleanup.Tests.csproj" />
-  <Project Path="test/DotnetCleanup.IntegrationTests/DotnetCleanup.IntegrationTests.csproj" />
+  <Folder Name="/src/">
+    <Project Path="src/DotnetCleanup/DotnetCleanup.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <File Path="test/Directory.Packages.props" />
+    <Project Path="test/DotnetCleanup.IntegrationTests/DotnetCleanup.IntegrationTests.csproj" />
+    <Project Path="test/DotNetCleanup.Tests/DotNetCleanup.Tests.csproj" />
+  </Folder>
 </Solution>

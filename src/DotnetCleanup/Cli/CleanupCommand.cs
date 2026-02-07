@@ -10,8 +10,6 @@ public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
 
     public override async Task<int> ExecuteAsync(CommandContext context, CleanupSettings settings, CancellationToken cancellationToken)
     {
-        WriteVerbosityNormal(":broom: Cleanup started");
-
         service.OnListPathsStepStart += () =>
         {
             WriteVerbosityDetailed(":magnifying_glass_tilted_right: Listing files...");
@@ -59,26 +57,27 @@ public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
         service.OnMovePath += (path) => WriteOnPath(path, "cyan", "Error moving");
         service.OnDeletePath += (path) => WriteOnPath(path, "Purple_1", "Error deleting");
 
-        var result = service.Cleanup(() =>
-        {
-            if (!settings.SkipConfirm)
+        var result = await console.Status().StartAsync(":broom: Cleanup running...",
+            async (_) => service.Cleanup(() =>
             {
-                var isConfirmed = console.Confirm("Proceed with the cleanup?", defaultValue: false);
-
-                if (!isConfirmed)
+                if (!settings.SkipConfirm)
                 {
-                    console.MarkupLine("[yellow]Cleanup canceled by user[/]");
-                }
+                    var isConfirmed = console.Confirm("Proceed with the cleanup?", defaultValue: false);
 
-                return isConfirmed;
-            }
-            else
-            {
-                return true;
-            }
-        },
-        settings,
-        cancellationToken);
+                    if (!isConfirmed)
+                    {
+                        console.MarkupLine("[yellow]Cleanup canceled by user[/]");
+                    }
+
+                    return isConfirmed;
+                }
+                else
+                {
+                    return true;
+                }
+            },
+            settings,
+            cancellationToken));
 
         console.MarkupLine($"[green]:check_mark:  Cleanup process completed.[/]");
 

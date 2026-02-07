@@ -10,6 +10,13 @@ The CLI tool lives in `src/DotnetCleanup/` (command entry point, services, event
 - `dotnet run --project src/DotnetCleanup -- --help` - run the CLI locally; pass tool arguments after `--`.
 - `dotnet pack src/DotnetCleanup/DotnetCleanup.csproj` - create the tool package (outputs to `src/DotnetCleanup/nupkg/`).
 
+## Main Flow
+- `src/DotnetCleanup/Program.cs` wires Spectre.Console, registers `IFileSystem`, and runs `CleanupCommand`.
+- `src/DotnetCleanup/Cli/CleanupCommand.cs` is the application layer; binds CLI settings, subscribes to `CleanupService` events, prompts for confirmation, and renders output.
+- `src/DotnetCleanup/CleanupService.cs` is the entry point for the domain layer; validates settings, lists paths, confirms, ensures temp dir, moves, deletes, returns `CleanupResult`.
+- `src/DotnetCleanup/IO/FileSystemService.cs` performs glob matching + traversal and the move/delete operations using `IFileSystem`.
+- `src/DotnetCleanup/CleanupSettings.cs` defines options; `src/DotnetCleanup/CleanupStep.cs`, `src/DotnetCleanup/CleanupResult.cs`, and `src/DotnetCleanup/PathInfo.cs` capture per-step results.
+
 ## Coding Style & Naming Conventions
 Follow `.editorconfig`: spaces only, 4-space indentation for C# (UTF-8 BOM), and 2-space indentation for JSON/XML/PS. Use `SpellingExclusions.dic` for accepted terms. Keep `System` using directives first and do not separate using groups. Avoid multiple blank lines and embedded statements on the same line; keep braces around blocks. Nullable reference types are enabled; handle nulls explicitly. Prefer `var`. Naming rules include PascalCase for public members, `s_` prefix for static fields, and `_` prefix for instance fields. Formatting and unused-parameter diagnostics are treated as warnings (e.g., IDE0055, IDE0060). Keep file and class names aligned.
 

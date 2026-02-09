@@ -1,28 +1,24 @@
 # dotnet-cleanup
 
-.NET Global Tool for cleaning up build output and dependency folders.
+.NET tool for cleaning generated folders from a directory tree.
 
-The tool will list the files and folders which will be deleted,
-and you will be prompted to confirm. Can be disabled with
-the `-y|--yes` command-option.
+By default, it targets the common output/dependency folders `**/bin`, `**/obj` and `**/node_modules`.
 
-Deleted files and folders are first moved to a temporary folder
-before deletion, so **you can continue working with your projects**,
-while the tool keeps cleaning up in background.
+To maximize the speed of deletion, enabling instant working with your project, the tool moves the deleted files to a temp-folder first, before deleting.
 
-## Installation
+## Install
 
-Download the latest version of the .NET SDK from https://dotnet.microsoft.com/download
+Requires .NET SDK: https://dotnet.microsoft.com/download
 
-Then install the `cleanup` .NET Global Tool, using the command-line:
+Install the .NET tool:
 
-```
+```bash
 dotnet tool install --global dotnet-cleanup
 ```
 
 ## Usage
 
-```
+```bash
 USAGE:
     dotnet-cleanup [PATH] [OPTIONS]
 
@@ -45,5 +41,34 @@ OPTIONS:
     -v, --verbosity <LEVEL>     Sets the verbosity level. Allowed values are minimal (m), normal (n) and detailed (d)
 ```
 
-Include and exclude patterns are matched against paths relative to the given `PATH` (defaults to the current path).
-Globbing supports `*`, `?`, and `**`. Exclusions take precedence over inclusions.
+### Examples
+
+```bash
+# Clean current directory tree (confirmation prompt enabled)
+cleanup
+
+# Clean a specific folder tree
+cleanup C:\src\project
+
+# Custom include/exclude patterns
+cleanup -p "**/bin" -p "**/obj" -p "**/node_modules" -x "**/samples/**"
+
+# Skip confirmation
+cleanup -y
+
+# List and move, but do not delete
+cleanup --noop
+
+# Delete in place without temp staging
+cleanup --no-move -y
+```
+
+## Behavior
+
+- Start path defaults to your current working directory.
+- Default include patterns are `**/bin`, `**/obj`, and `**/node_modules`.
+- Include/exclude patterns are matched relative to the chosen start path.
+- Exclude patterns take precedence over include patterns.
+- By default, matched paths are moved to a temp staging folder before deletion.
+- Temp staging defaults to the system temp path; override with `--temp-path`.
+- Verbosity levels: `minimal`, `normal`, `detailed`.

@@ -23,7 +23,7 @@ USAGE:
     dotnet-cleanup [PATH] [OPTIONS]
 
 EXAMPLES:
-    dotnet-cleanup c:\src\project --include **/bin --include **/obj --include **/node_modules --exclude README.md
+    dotnet-cleanup c:\src\project --include **/bin --include **/obj --include **/node_modules --exclude samples/**
     dotnet-cleanup -p **/bin -p **/obj -y
     dotnet-cleanup -p **/node_modules --verbosity minimal
 

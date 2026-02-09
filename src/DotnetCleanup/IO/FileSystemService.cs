@@ -21,56 +21,59 @@ public class FileSystemService(IFileSystem fileSystem)
         var relativePath = PathUtility.GetRelativePath(settings.Path, path.Value);
         if (string.IsNullOrWhiteSpace(relativePath))
         {
-            throw new ArgumentOutOfRangeException(nameof(path), $"Failed to resolve relative path for the given path: {path.Value}");
+            path.SetFailedOnMove(new ArgumentOutOfRangeException(nameof(path), $"Failed to resolve relative path for the given path: {path.Value}"));
+            return path;
         }
 
-        var targetPath = Path.Combine(tempPath, relativePath);
-        var movePath = new PathInfo(targetPath, path.IsFile);
+        var targetPath = PathUtility.GetNormalizedPath(Path.Combine(tempPath, relativePath)) ?? string.Empty;
+        var targetParent = PathUtility.GetParentPath(targetPath) ?? string.Empty;
 
         try
         {
+            EnsureDirectory(targetParent);
+
             if (path.IsFile)
             {
-                EnsureDirectory(movePath.Parent);
-
-                fileSystem.MoveFile(path.Value, movePath.Value);
+                fileSystem.MoveFile(path.Value, targetPath);
             }
             else
             {
-                EnsureDirectory(movePath.Parent);
-
-                fileSystem.MoveDirectory(path.Value, movePath.Value);
+                fileSystem.MoveDirectory(path.Value, targetPath);
             }
         }
-        catch (IOException ex)
+        catch (Exception ex) when (
+            ex is UnauthorizedAccessException ||
+            ex is IOException)
         {
-            movePath.SetException(ex);
+            path.SetFailedOnMove(ex);
         }
 
-        return movePath;
+        return path;
     }
 
     public PathInfo DeletePath(PathInfo path)
     {
-        var delete = new PathInfo(path.Value, path.IsFile);
-
         try
         {
-            if (delete.IsFile)
+            var deletePath = !string.IsNullOrWhiteSpace(path.MovePath) ? path.MovePath : path.Value;
+
+            if (path.IsFile)
             {
-                fileSystem.DeleteFile(delete.Value);
+                fileSystem.DeleteFile(deletePath);
             }
             else
             {
-                fileSystem.DeleteDirectory(delete.Value);
+                fileSystem.DeleteDirectory(deletePath);
             }
         }
-        catch (IOException ex)
+        catch (Exception ex) when (
+            ex is UnauthorizedAccessException ||
+            ex is IOException)
         {
-            delete.SetException(ex);
+            path.SetFailedOnDelete(ex);
         }
 
-        return delete;
+        return path;
     }
 
     public string EnsureTempDirectory(CleanupSettings settings)
@@ -117,17 +120,10 @@ public class FileSystemService(IFileSystem fileSystem)
 
     private IEnumerable<PathInfo> GetPathsInternal(string rootDirectory, PathInfo path, Matcher matcher, CancellationToken cancellationToken)
     {
-        IEnumerable<string> directories;
-        IEnumerable<string> files;
-        try
+        if (!TryEnumerateFiles(path.Value, out var files, out var fileException))
         {
-            files = fileSystem.EnumerateFiles(path.Value);
-        }
-        catch (Exception ex) when (
-            ex is UnauthorizedAccessException ||
-            ex is IOException ||
-            ex is DirectoryNotFoundException)
-        {
+            path.SetFailedOnList(fileException!);
+            yield return path;
             yield break;
         }
 
@@ -141,15 +137,10 @@ public class FileSystemService(IFileSystem fileSystem)
             }
         }
 
-        try
+        if (!TryEnumerateDirectories(path.Value, out var directories, out var directoryException))
         {
-            directories = Directory.EnumerateDirectories(path.Value);
-        }
-        catch (Exception ex) when (
-            ex is UnauthorizedAccessException ||
-            ex is IOException ||
-            ex is DirectoryNotFoundException)
-        {
+            path.SetFailedOnList(directoryException!);
+            yield return path;
             yield break;
         }
 
@@ -179,5 +170,44 @@ public class FileSystemService(IFileSystem fileSystem)
         var relativePath = PathUtility.GetRelativePath(rootPath, path);
         var result = !string.IsNullOrWhiteSpace(relativePath) ? matcher.Match(relativePath) : null;
         return result?.HasMatches ?? false;
+    }
+
+    private static bool IsPathEnumerationException(Exception exception)
+    {
+        return exception is UnauthorizedAccessException ||
+            exception is IOException ||
+            exception is DirectoryNotFoundException;
+    }
+
+    private bool TryEnumerateFiles(string path, out IEnumerable<string> files, out Exception? exception)
+    {
+        try
+        {
+            files = fileSystem.EnumerateFiles(path);
+            exception = null;
+            return true;
+        }
+        catch (Exception ex) when (IsPathEnumerationException(ex))
+        {
+            files = [];
+            exception = ex;
+            return false;
+        }
+    }
+
+    private bool TryEnumerateDirectories(string path, out IEnumerable<string> directories, out Exception? exception)
+    {
+        try
+        {
+            directories = fileSystem.EnumerateDirectories(path);
+            exception = null;
+            return true;
+        }
+        catch (Exception ex) when (IsPathEnumerationException(ex))
+        {
+            directories = [];
+            exception = ex;
+            return false;
+        }
     }
 }

@@ -146,7 +146,7 @@ public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
 
     private static string GetStepSuccessErrorText(CleanupStep step, string successColor = "blue")
     {
-        var errorText = step.Errors.Count > 0 ? $" [red]{step.Errors.Count} failed.[/]" : string.Empty;
+        var errorText = step.Failed.Count > 0 ? $" [red]{step.Failed.Count} failed.[/]" : string.Empty;
 
         return $"  [{successColor}]{step.Successes.Count} succeeded.[/]{errorText}";
     }

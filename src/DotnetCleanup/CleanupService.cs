@@ -60,11 +60,7 @@ public sealed class CleanupService(FileSystemService fileSystemService)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var isAdded = path.Exception == null ? step.AddSuccess(path) : step.AddError(path);
-            if (isAdded)
-            {
-                OnListPath?.Invoke(path);
-            }
+            AddPath(step, path, OnListPath);
         }
 
         OnListPathsStepDone?.Invoke(step);
@@ -78,7 +74,14 @@ public sealed class CleanupService(FileSystemService fileSystemService)
 
         CleanupStep step = new();
 
-        if (!settings.SkipMove)
+        if (settings.SkipMove)
+        {
+            foreach (var path in paths)
+            {
+                step.AddSuccess(path);
+            }
+        }
+        else
         {
             Parallel.ForEach(paths, path =>
             {
@@ -86,11 +89,11 @@ public sealed class CleanupService(FileSystemService fileSystemService)
 
                 var movePath = fileSystemService.MovePath(tempPath, path, settings);
 
-                var isAdded = movePath.Exception == null ? step.AddSuccess(movePath) : step.AddError(movePath);
-                if (isAdded)
+                AddPath(step, movePath, (pathInfo) =>
                 {
-                    OnMovePath?.Invoke(movePath);
-                }
+                    OnMovePath?.Invoke(pathInfo);
+                    path.SetMovePath(pathInfo.Value);
+                });
             });
         }
 
@@ -115,23 +118,22 @@ public sealed class CleanupService(FileSystemService fileSystemService)
 
                     var deletePath = fileSystemService.DeletePath(path);
 
-                    var isAdded = deletePath.Exception == null ? step.AddSuccess(deletePath) : step.AddError(deletePath);
-                    if (isAdded)
-                    {
-                        OnDeletePath?.Invoke(deletePath);
-                    }
+                    AddPath(step, deletePath, OnDeletePath);
                 });
             }
-            else
+            else if (deletePaths.Count > 0)
             {
                 var temp = new PathInfo(tempPath, isFile: false);
+                var tempDeletePath = fileSystemService.DeletePath(temp);
 
-                var deletePath = fileSystemService.DeletePath(temp);
-
-                var isAdded = deletePath.Exception == null ? step.AddSuccess(deletePath) : step.AddError(deletePath);
-                if (isAdded)
+                foreach (var path in deletePaths)
                 {
-                    OnDeletePath?.Invoke(deletePath);
+                    if (tempDeletePath.Exception != null)
+                    {
+                        path.SetFailedOnDelete(tempDeletePath.Exception);
+                    }
+
+                    AddPath(step, path, OnDeletePath);
                 }
             }
         }
@@ -139,5 +141,17 @@ public sealed class CleanupService(FileSystemService fileSystemService)
         OnDeletePathsStepDone?.Invoke(step);
 
         return step;
+    }
+
+    private static void AddPath(CleanupStep step, PathInfo path, PathHandler? pathEventHandler)
+    {
+        var isAdded = path.Exception == null
+            ? step.AddSuccess(path)
+            : step.AddFailed(path);
+
+        if (isAdded)
+        {
+            pathEventHandler?.Invoke(path);
+        }
     }
 }

@@ -1,15 +1,24 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using DotnetCleanup.IO;
+﻿using DotnetCleanup.IO;
 
 namespace DotNetCleanup.Tests.IO;
 
-public class InMemoryFileSystem : IFileSystem
+public class InMemoryFileSystem(string[]? directories = null, string[]? files = null) : IFileSystem
 {
-    public HashSet<string> Directories { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    public HashSet<string> Directories { get; } = new HashSet<string>(directories ?? [], StringComparer.OrdinalIgnoreCase);
 
-    public HashSet<string> Files { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    public HashSet<string> Files { get; } = new HashSet<string>(files ?? [], StringComparer.OrdinalIgnoreCase);
+
+    public Exception? DeleteDirectoryException { get; set; }
+
+    public Exception? DeleteFileException { get; set; }
+
+    public Exception? EnumerateDirectoriesException { get; set; }
+
+    public Exception? EnumerateFilesException { get; set; }
+
+    public Exception? MoveDirectoryException { get; set; }
+
+    public Exception? MoveFileException { get; set; }
 
     public void CreateDirectory(string path)
     {
@@ -18,13 +27,22 @@ public class InMemoryFileSystem : IFileSystem
 
     public void DeleteDirectory(string path)
     {
-        Directories.Remove(path);
+        if (DeleteDirectoryException != null)
+        {
+            throw DeleteDirectoryException;
+        }
 
-        Files.RemoveWhere(x => x.StartsWith(path));
+        Directories.Remove(path);
+        Files.RemoveWhere(x => x.StartsWith(path, StringComparison.OrdinalIgnoreCase));
     }
 
     public void DeleteFile(string path)
     {
+        if (DeleteFileException != null)
+        {
+            throw DeleteFileException;
+        }
+
         Files.Remove(path);
     }
 
@@ -35,12 +53,22 @@ public class InMemoryFileSystem : IFileSystem
 
     public IEnumerable<string> EnumerateFiles(string path)
     {
-        return Files.Where(x => x.StartsWith(path) && !x.Equals(path, StringComparison.OrdinalIgnoreCase));
+        if (EnumerateFilesException != null)
+        {
+            throw EnumerateFilesException;
+        }
+
+        return Files.Where(x => x.StartsWith(path, StringComparison.OrdinalIgnoreCase) && !x.Equals(path, StringComparison.OrdinalIgnoreCase));
     }
 
     public IEnumerable<string> EnumerateDirectories(string path)
     {
-        return Directories.Where(x => x.StartsWith(path) && !x.Equals(path, StringComparison.OrdinalIgnoreCase));
+        if (EnumerateDirectoriesException != null)
+        {
+            throw EnumerateDirectoriesException;
+        }
+
+        return Directories.Where(x => x.StartsWith(path, StringComparison.OrdinalIgnoreCase) && !x.Equals(path, StringComparison.OrdinalIgnoreCase));
     }
 
     //public bool FileExists(string path)
@@ -65,6 +93,11 @@ public class InMemoryFileSystem : IFileSystem
 
     public void MoveDirectory(string sourcePath, string destinationPath)
     {
+        if (MoveDirectoryException != null)
+        {
+            throw MoveDirectoryException;
+        }
+
         if (Directories.Remove(sourcePath))
         {
             Directories.Add(destinationPath);
@@ -73,6 +106,11 @@ public class InMemoryFileSystem : IFileSystem
 
     public void MoveFile(string sourcePath, string destinationPath)
     {
+        if (MoveFileException != null)
+        {
+            throw MoveFileException;
+        }
+
         if (Files.Remove(sourcePath))
         {
             Files.Add(destinationPath);

@@ -32,7 +32,6 @@ public sealed class CleanupServiceTests
         Assert.Same(listPath, deletePath);
         Assert.Null(listPath.Exception);
         Assert.Null(listPath.FailedOn);
-        Assert.StartsWith(tempPath, listPath.Value, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

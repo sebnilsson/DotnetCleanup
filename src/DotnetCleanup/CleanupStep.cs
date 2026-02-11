@@ -1,4 +1,4 @@
-namespace DotnetCleanup;
+﻿namespace DotnetCleanup;
 
 public sealed record CleanupStep
 {

@@ -81,7 +81,7 @@ public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
 
         console.MarkupLine($"[green]:check_mark:  Cleanup process completed.[/]");
 
-        if (settings.IsVerbosityNormal() && result.DeleteStep != null)
+        if (settings.IsVerbosityNormal())
         {
             WriteStepSummary(result.DeleteStep, "green");
         }

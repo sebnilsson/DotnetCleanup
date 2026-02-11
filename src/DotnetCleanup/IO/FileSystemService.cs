@@ -40,6 +40,8 @@ public class FileSystemService(IFileSystem fileSystem)
             {
                 fileSystem.MoveDirectory(path.Value, targetPath);
             }
+
+            path.SetMovePath(targetPath);
         }
         catch (Exception ex) when (
             ex is UnauthorizedAccessException ||

@@ -4,71 +4,112 @@ namespace DotNetCleanup.Tests.IO;
 
 public class InMemoryFileSystem(string[]? directories = null, string[]? files = null) : IFileSystem
 {
-    public HashSet<string> Directories { get; } = new HashSet<string>(directories ?? [], StringComparer.OrdinalIgnoreCase);
+    private static readonly StringComparer s_pathComparer = StringComparer.OrdinalIgnoreCase;
+    private readonly Lock _fileSystemLock = new();
 
-    public HashSet<string> Files { get; } = new HashSet<string>(files ?? [], StringComparer.OrdinalIgnoreCase);
+    public HashSet<string> Directories { get; } = CreatePathSet(directories);
 
-    public Exception? DeleteDirectoryException { get; set; }
+    public HashSet<string> Files { get; } = CreatePathSet(files);
 
-    public Exception? DeleteFileException { get; set; }
+    public Dictionary<string, Exception> ListDirectoryExceptions { get; } = new(StringComparer.OrdinalIgnoreCase);
 
-    public Exception? EnumerateDirectoriesException { get; set; }
+    public Dictionary<string, Exception> ListFileExceptions { get; } = new(StringComparer.OrdinalIgnoreCase);
 
-    public Exception? EnumerateFilesException { get; set; }
+    public Dictionary<string, Exception> MoveDirectoryExceptions { get; } = new(StringComparer.OrdinalIgnoreCase);
 
-    public Exception? MoveDirectoryException { get; set; }
+    public Dictionary<string, Exception> MoveFileExceptions { get; } = new(StringComparer.OrdinalIgnoreCase);
 
-    public Exception? MoveFileException { get; set; }
+    public Dictionary<string, Exception> DeleteDirectoryExceptions { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public Dictionary<string, Exception> DeleteFileExceptions { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     public void CreateDirectory(string path)
     {
-        Directories.Add(path);
+        lock (_fileSystemLock)
+        {
+            Directories.Add(NormalizePath(path));
+        }
     }
 
     public void DeleteDirectory(string path)
     {
-        if (DeleteDirectoryException != null)
+        lock (_fileSystemLock)
         {
-            throw DeleteDirectoryException;
-        }
+            var normalizedPath = NormalizePath(path);
+            if (DeleteDirectoryExceptions.TryGetValue(normalizedPath, out var exception))
+            {
+                throw exception;
+            }
 
-        Directories.Remove(path);
-        Files.RemoveWhere(x => x.StartsWith(path, StringComparison.OrdinalIgnoreCase));
+            var directoryPrefix = $"{normalizedPath}{Path.DirectorySeparatorChar}";
+
+            Directories.RemoveWhere(x => s_pathComparer.Equals(x, normalizedPath) || x.StartsWith(directoryPrefix, StringComparison.OrdinalIgnoreCase));
+            Files.RemoveWhere(x => x.StartsWith(directoryPrefix, StringComparison.OrdinalIgnoreCase));
+        }
     }
 
     public void DeleteFile(string path)
     {
-        if (DeleteFileException != null)
+        lock (_fileSystemLock)
         {
-            throw DeleteFileException;
-        }
+            var normalizedPath = NormalizePath(path);
+            if (DeleteFileExceptions.TryGetValue(normalizedPath, out var exception))
+            {
+                throw exception;
+            }
 
-        Files.Remove(path);
+            Files.Remove(normalizedPath);
+        }
     }
 
     public bool DirectoryExists(string path)
     {
-        return Directories.Contains(path);
+        lock (_fileSystemLock)
+        {
+            return Directories.Contains(NormalizePath(path));
+        }
     }
 
     public IEnumerable<string> EnumerateFiles(string path)
     {
-        if (EnumerateFilesException != null)
+        lock (_fileSystemLock)
         {
-            throw EnumerateFilesException;
-        }
+            var normalizedPath = NormalizePath(path);
+            if (ListFileExceptions.TryGetValue(normalizedPath, out var pathException))
+            {
+                throw pathException;
+            }
 
-        return Files.Where(x => x.StartsWith(path, StringComparison.OrdinalIgnoreCase) && !x.Equals(path, StringComparison.OrdinalIgnoreCase));
+            var files = Files.Where(x => IsDirectChild(normalizedPath, x)).ToArray();
+
+            if (TryGetChildException(files, ListFileExceptions, out var childException))
+            {
+                throw childException!;
+            }
+
+            return files;
+        }
     }
 
     public IEnumerable<string> EnumerateDirectories(string path)
     {
-        if (EnumerateDirectoriesException != null)
+        lock (_fileSystemLock)
         {
-            throw EnumerateDirectoriesException;
-        }
+            var normalizedPath = NormalizePath(path);
+            if (ListDirectoryExceptions.TryGetValue(normalizedPath, out var pathException))
+            {
+                throw pathException;
+            }
 
-        return Directories.Where(x => x.StartsWith(path, StringComparison.OrdinalIgnoreCase) && !x.Equals(path, StringComparison.OrdinalIgnoreCase));
+            var directories = Directories.Where(x => IsDirectChild(normalizedPath, x)).ToArray();
+
+            if (TryGetChildException(directories, ListDirectoryExceptions, out var childException))
+            {
+                throw childException!;
+            }
+
+            return directories;
+        }
     }
 
     //public bool FileExists(string path)
@@ -93,27 +134,126 @@ public class InMemoryFileSystem(string[]? directories = null, string[]? files = 
 
     public void MoveDirectory(string sourcePath, string destinationPath)
     {
-        if (MoveDirectoryException != null)
+        lock (_fileSystemLock)
         {
-            throw MoveDirectoryException;
-        }
+            var normalizedSourcePath = NormalizePath(sourcePath);
+            if (MoveDirectoryExceptions.TryGetValue(normalizedSourcePath, out var exception))
+            {
+                throw exception;
+            }
 
-        if (Directories.Remove(sourcePath))
-        {
-            Directories.Add(destinationPath);
+            var normalizedDestinationPath = NormalizePath(destinationPath);
+            var sourcePrefix = $"{normalizedSourcePath}{Path.DirectorySeparatorChar}";
+
+            var directoriesToMove = Directories
+                .Where(x => s_pathComparer.Equals(x, normalizedSourcePath) || x.StartsWith(sourcePrefix, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+
+            if (directoriesToMove.Length == 0)
+            {
+                return;
+            }
+
+            var filesToMove = Files
+                .Where(x => x.StartsWith(sourcePrefix, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+
+            foreach (var directory in directoriesToMove)
+            {
+                Directories.Remove(directory);
+            }
+
+            foreach (var file in filesToMove)
+            {
+                Files.Remove(file);
+            }
+
+            foreach (var directory in directoriesToMove)
+            {
+                Directories.Add(ReplacePathPrefix(directory, normalizedSourcePath, normalizedDestinationPath));
+            }
+
+            foreach (var file in filesToMove)
+            {
+                Files.Add(ReplacePathPrefix(file, normalizedSourcePath, normalizedDestinationPath));
+            }
         }
     }
 
     public void MoveFile(string sourcePath, string destinationPath)
     {
-        if (MoveFileException != null)
+        lock (_fileSystemLock)
         {
-            throw MoveFileException;
+            var normalizedSourcePath = NormalizePath(sourcePath);
+            if (MoveFileExceptions.TryGetValue(normalizedSourcePath, out var exception))
+            {
+                throw exception;
+            }
+
+            if (Files.Remove(normalizedSourcePath))
+            {
+                Files.Add(NormalizePath(destinationPath));
+            }
+        }
+    }
+
+    private static HashSet<string> CreatePathSet(IEnumerable<string>? paths)
+    {
+        HashSet<string> set = new(StringComparer.OrdinalIgnoreCase);
+
+        if (paths != null)
+        {
+            foreach (var path in paths)
+            {
+                set.Add(NormalizePath(path));
+            }
         }
 
-        if (Files.Remove(sourcePath))
+        return set;
+    }
+
+    private static bool IsDirectChild(string parentPath, string candidatePath)
+    {
+        if (s_pathComparer.Equals(parentPath, candidatePath))
         {
-            Files.Add(destinationPath);
+            return false;
         }
+
+        var relativePath = PathUtility.GetRelativePath(parentPath, candidatePath);
+        if (string.IsNullOrWhiteSpace(relativePath) || relativePath.StartsWith("..", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        return relativePath.IndexOfAny(['\\', '/']) < 0;
+    }
+
+    private static string NormalizePath(string path)
+    {
+        return PathUtility.GetNormalizedPath(path) ?? string.Empty;
+    }
+
+    private static string ReplacePathPrefix(string value, string sourcePath, string destinationPath)
+    {
+        if (s_pathComparer.Equals(value, sourcePath))
+        {
+            return destinationPath;
+        }
+
+        return $"{destinationPath}{value[sourcePath.Length..]}";
+    }
+
+    private static bool TryGetChildException(string[] childPaths, Dictionary<string, Exception> exceptionsByPath, out Exception? exception)
+    {
+        foreach (var childPath in childPaths.Order(StringComparer.OrdinalIgnoreCase))
+        {
+            if (exceptionsByPath.TryGetValue(childPath, out exception))
+            {
+                return true;
+            }
+        }
+
+        exception = null;
+        return false;
     }
 }

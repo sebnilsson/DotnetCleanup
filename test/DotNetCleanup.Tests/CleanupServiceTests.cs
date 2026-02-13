@@ -1,6 +1,6 @@
 ﻿using DotnetCleanup.Cli;
 using DotnetCleanup.IO;
-using DotNetCleanup.Tests.IO;
+using DotNetCleanup.Testing.IO;
 using Xunit;
 
 namespace DotnetCleanup.Tests;

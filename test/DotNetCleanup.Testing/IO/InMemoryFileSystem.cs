@@ -4,10 +4,14 @@ namespace DotNetCleanup.Testing.IO;
 
 public class InMemoryFileSystem(string[]? directories = null, string[]? files = null) : IFileSystem
 {
+    public const string DefaultRootPath = @"c:\root-path";
+    public const string DefaultTempPath = @"c:\temp-path";
+
     private static readonly StringComparer s_pathComparer = StringComparer.OrdinalIgnoreCase;
+
     private readonly Lock _fileSystemLock = new();
 
-    public HashSet<string> Directories { get; } = CreatePathSet(directories);
+    public HashSet<string> Directories { get; } = CreatePathSet(directories ?? [DefaultRootPath, DefaultTempPath]);
 
     public HashSet<string> Files { get; } = CreatePathSet(files);
 

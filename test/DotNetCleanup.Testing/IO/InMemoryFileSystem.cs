@@ -1,6 +1,6 @@
 ﻿using DotnetCleanup.IO;
 
-namespace DotNetCleanup.Tests.IO;
+namespace DotNetCleanup.Testing.IO;
 
 public class InMemoryFileSystem(string[]? directories = null, string[]? files = null) : IFileSystem
 {

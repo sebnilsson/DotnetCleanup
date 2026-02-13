@@ -15,6 +15,7 @@
   <Folder Name="/test/">
     <File Path="test/Directory.Packages.props" />
     <Project Path="test/DotnetCleanup.IntegrationTests/DotnetCleanup.IntegrationTests.csproj" />
+    <Project Path="test/DotNetCleanup.Testing/DotNetCleanup.Testing.csproj" Id="eeaa4deb-0e5d-4a55-a9dc-1c08d8d9e94e" />
     <Project Path="test/DotNetCleanup.Tests/DotNetCleanup.Tests.csproj" />
   </Folder>
 </Solution>

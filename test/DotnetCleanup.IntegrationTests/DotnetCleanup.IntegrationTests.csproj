@@ -5,11 +5,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\DotnetCleanup\DotnetCleanup.csproj" />
+    <ProjectReference Include="..\DotNetCleanup.Testing\DotNetCleanup.Testing.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Spectre.Console.Cli.Testing" />
     <PackageReference Include="Spectre.Console.Testing" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio">

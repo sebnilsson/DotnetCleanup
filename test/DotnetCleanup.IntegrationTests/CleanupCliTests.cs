@@ -66,6 +66,94 @@ public sealed class CleanupCliTests
         Assert.True(settings?.SkipDelete);
     }
 
+    [Fact]
+    public void Run_NonExistingRootPath_ThrowsDirectoryNotFoundException()
+    {
+        // Arrange
+        var appTester = CreateAppTester(new AppTesterConfig(Directories: [DefaultTempPath]));
+
+        // Act
+        var exception = Assert.Throws<DirectoryNotFoundException>(() => appTester.Run([DefaultRootPath, "--temp-path", DefaultTempPath,
+            "-y", "--noop"]));
+
+        // Assert
+        Assert.Equal($"The given path does not exist: {DefaultRootPath}", exception.Message);
+    }
+
+    [Fact]
+    public void Run_NonExistingTempPath_ThrowsDirectoryNotFoundException()
+    {
+        // Arrange
+        var appTester = CreateAppTester(new AppTesterConfig(Directories: [DefaultRootPath]));
+
+        // Act
+        var exception = Assert.Throws<DirectoryNotFoundException>(() => appTester.Run([DefaultRootPath, "--temp-path", DefaultTempPath,
+            "-y", "--noop"]));
+
+        // Assert
+        Assert.Equal($"The given temporary path does not exist: {DefaultTempPath}", exception.Message);
+    }
+
+    [Fact]
+    public void Run_UsingLongIncludeOptionMultipleTimes_SetsSettings()
+    {
+        // Arrange
+        var appTester = CreateAppTester();
+
+        // Act
+        var result = appTester.Run([DefaultRootPath, "--temp-path", DefaultTempPath,
+            "--include", "**/bin", "--include", "**/obj", "--include", "**/node_modules", "-y", "--noop"]);
+        var settings = Assert.IsType<CleanupSettings>(result.Settings);
+
+        // Assert
+        Assert.Equal(["**/bin", "**/obj", "**/node_modules"], settings.Include);
+    }
+
+    [Fact]
+    public void Run_UsingLongExcludeOptionMultipleTimes_SetsSettings()
+    {
+        // Arrange
+        var appTester = CreateAppTester();
+
+        // Act
+        var result = appTester.Run([DefaultRootPath, "--temp-path", DefaultTempPath,
+            "--exclude", "**/bin", "--exclude", "**/obj", "--exclude", "**/node_modules", "-y", "--noop"]);
+        var settings = Assert.IsType<CleanupSettings>(result.Settings);
+
+        // Assert
+        Assert.Equal(["**/bin", "**/obj", "**/node_modules"], settings.Exclude);
+    }
+
+    [Fact]
+    public void Run_UsingShortIncludeOptionMultipleTimes_SetsSettings()
+    {
+        // Arrange
+        var appTester = CreateAppTester();
+
+        // Act
+        var result = appTester.Run([DefaultRootPath, "--temp-path", DefaultTempPath,
+            "-p", "**/bin", "-p", "**/obj", "-p", "**/node_modules", "-y", "--noop"]);
+        var settings = Assert.IsType<CleanupSettings>(result.Settings);
+
+        // Assert
+        Assert.Equal(["**/bin", "**/obj", "**/node_modules"], settings.Include);
+    }
+
+    [Fact]
+    public void Run_UsingShortExcludeOptionMultipleTimes_SetsSettings()
+    {
+        // Arrange
+        var appTester = CreateAppTester();
+
+        // Act
+        var result = appTester.Run([DefaultRootPath, "--temp-path", DefaultTempPath,
+            "-x", "**/bin", "-x", "**/obj", "-x", "**/node_modules", "-y", "--noop"]);
+        var settings = Assert.IsType<CleanupSettings>(result.Settings);
+
+        // Assert
+        Assert.Equal(["**/bin", "**/obj", "**/node_modules"], settings.Exclude);
+    }
+
     private record AppTesterConfig(
         TestConsole? Console = null,
         string[]? Directories = null,

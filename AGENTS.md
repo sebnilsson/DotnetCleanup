@@ -5,8 +5,8 @@ The CLI tool lives in `src/DotnetCleanup/` (command entry point, services, event
 
 ## Build, Test, and Development Commands
 - `dotnet restore` - restore NuGet packages for the solution.
-- `dotnet build DotnetCleanup.sln` - build all projects.
-- `dotnet test DotnetCleanup.sln` - run xUnit tests.
+- `dotnet build DotnetCleanup.slnx` - build all projects.
+- `dotnet test DotnetCleanup.slnx` - run xUnit tests.
 - `dotnet run --project src/DotnetCleanup -- --help` - run the CLI locally; pass tool arguments after `--`.
 - `dotnet pack src/DotnetCleanup/DotnetCleanup.csproj` - create the tool package (outputs to `src/DotnetCleanup/nupkg/`).
 
@@ -29,6 +29,7 @@ Commit messages in this repo are short and descriptive, often sentence-case or v
 
 ## Tooling & Configuration Notes
 The repository targets `net9.0` and `net10.0`.
+The repository currently includes `DotnetCleanup.slnx` as the top-level solution file.
 
 ## Post change checklist
 After any changes to code files, follow this checklist:

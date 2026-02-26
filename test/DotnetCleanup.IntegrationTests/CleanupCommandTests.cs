@@ -9,7 +9,7 @@ using Xunit;
 
 namespace DotnetCleanup.IntegrationTests;
 
-public sealed class CleanupCliTests
+public sealed class CleanupCommandTests
 {
     public const string DefaultRootPath = InMemoryFileSystem.DefaultRootPath;
     public const string DefaultTempPath = InMemoryFileSystem.DefaultTempPath;

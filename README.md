@@ -35,7 +35,8 @@ OPTIONS:
     -p, --include <PATTERNS>    Glob paths to include in cleanup. Default paths: **/bin, **/obj, **/node_modules
     -x, --exclude <PATTERNS>    Glob paths to exclude from cleanup
     -y, --yes                   Run cleanup skipping confirm prompt
-        --noop                  Skip deleting files
+        --noop                  No-op mode: list matching paths without moving or deleting files
+        --no-delete             Skip deleting files after moving them to temporary folder
         --no-move               Skip moving files to temporary folder before deletion
         --temp-path <PATH>      Temporary path to move cleanup files before deletion
     -v, --verbosity <LEVEL>     Sets the verbosity level. Allowed values are minimal (m), normal (n) and detailed (d)
@@ -56,8 +57,11 @@ cleanup -p "**/bin" -p "**/obj" -p "**/node_modules" -x "**/samples/**"
 # Skip confirmation
 cleanup -y
 
-# List and move, but do not delete
+# List only (do not move or delete)
 cleanup --noop
+
+# Move to temp folder, but do not delete
+cleanup --no-delete -y
 
 # Delete in place without temp staging
 cleanup --no-move -y
@@ -70,5 +74,7 @@ cleanup --no-move -y
 - Include/exclude patterns are matched relative to the chosen start path.
 - Exclude patterns take precedence over include patterns.
 - By default, matched paths are moved to a temp staging folder before deletion.
+- `--no-delete` keeps moved paths in temp staging and skips deletion.
+- `--noop` lists matching paths but skips both move and delete.
 - Temp staging defaults to the system temp path; override with `--temp-path`.
 - Verbosity levels: `minimal`, `normal`, `detailed`.

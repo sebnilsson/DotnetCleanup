@@ -43,7 +43,7 @@ public sealed class CleanupService(FileSystemService fileSystemService)
             return cleanupResult;
         }
 
-        var tempPath = fileSystemService.EnsureTempDirectory(settings);
+        var tempPath = settings.Noop ? string.Empty : fileSystemService.EnsureTempDirectory(settings);
 
         MovePaths(cleanupResult, tempPath, settings, cancellationToken);
 
@@ -69,6 +69,12 @@ public sealed class CleanupService(FileSystemService fileSystemService)
     private void MovePaths(CleanupResult cleanupResult, string tempPath, CleanupSettings settings, CancellationToken cancellationToken)
     {
         OnMovePathsStepStart?.Invoke();
+
+        if (settings.Noop)
+        {
+            OnMovePathsStepDone?.Invoke(cleanupResult.MoveStep);
+            return;
+        }
 
         if (settings.SkipMove)
         {
@@ -97,7 +103,7 @@ public sealed class CleanupService(FileSystemService fileSystemService)
     {
         OnDeletePathsStepStart?.Invoke();
 
-        if (!settings.SkipDelete)
+        if (!settings.ShouldSkipDelete())
         {
             Parallel.ForEach(cleanupResult.MoveStep.Successes, path =>
             {

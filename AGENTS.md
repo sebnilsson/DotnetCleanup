@@ -19,12 +19,23 @@ The CLI tool lives in `src/DotnetCleanup/` (command entry point, services, event
 
 ## Coding Style & Naming Conventions
 Follow `.editorconfig`: spaces only, 4-space indentation for C# (UTF-8 BOM), and 2-space indentation for JSON/XML/PS. Use `SpellingExclusions.dic` for accepted terms. Keep `System` using directives first and do not separate using groups. Avoid multiple blank lines and embedded statements on the same line; keep braces around blocks. Nullable reference types are enabled; handle nulls explicitly. Prefer `var`. Naming rules include PascalCase for public members, `s_` prefix for static fields, and `_` prefix for instance fields. Formatting and unused-parameter diagnostics are treated as warnings (e.g., IDE0055, IDE0060). Keep file and class names aligned.
+Preserve Windows line endings (`CRLF`) for existing text files and do not normalize edited files to `LF`, to avoid Visual Studio "Inconsistent Line Endings" prompts.
 
 ## Testing Guidelines
-Tests use xUnit in `test/DotnetCleanup.Tests/`. Add tests alongside new behavior and keep them deterministic. Use descriptive test class and method names; follow existing patterns in the test project. Run tests with `dotnet test DotnetCleanup.sln` before submitting changes.
+Tests use xUnit in `test/DotnetCleanup.Tests/`. Add tests alongside new behavior and keep them deterministic. Use descriptive test class and method names; follow existing patterns in the test project. Use explicit `// Arrange`, `// Act`, and `// Assert` comments in each test method to separate phases. Run tests with `dotnet test DotnetCleanup.sln` before submitting changes.
 
 ## Commit & Pull Request Guidelines
 Commit messages in this repo are short and descriptive, often sentence-case or version-prefixed (e.g., `0.6.1: Roll Forward support`, `dotnet format`). Keep messages focused on a single change. For pull requests, include a brief summary, link related issues, and note the test command you ran (or why tests were not run). Update README or version metadata if the tool's behavior or packaging changes.
 
 ## Tooling & Configuration Notes
 The repository targets `net9.0` and `net10.0`.
+
+## Post change checklist
+After any changes to code files, follow this checklist:
+- Ensure files changed use CRLF line ending
+- Run `dotnet format` to ensure consistent code style
+- Run `dotnet test --no-restore` to verify build is working and tests are passing
+
+After any changes to any files, follow this checklist:
+- Update relevant documentation
+- If new insights are made, add it to the AGENTS.md file for future reference

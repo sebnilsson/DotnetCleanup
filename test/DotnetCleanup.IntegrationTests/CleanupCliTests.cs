@@ -29,7 +29,8 @@ public sealed class CleanupCliTests
         Assert.True(settings?.StartedAt > default(DateTimeOffset));
         Assert.Equal(InMemoryFileSystem.DefaultRootPath, settings?.Path);
         Assert.True(settings?.SkipConfirm);
-        Assert.True(settings?.SkipDelete);
+        Assert.True(settings?.Noop);
+        Assert.False(settings?.SkipDelete);
         Assert.True(settings?.SkipMove);
         Assert.Equal(InMemoryFileSystem.DefaultTempPath, settings?.TempPath);
     }
@@ -47,6 +48,24 @@ public sealed class CleanupCliTests
 
         // Assert
         Assert.True(settings?.SkipConfirm);
+        Assert.True(settings?.Noop);
+        Assert.False(settings?.SkipDelete);
+    }
+
+    [Fact]
+    public void Run_UsingNoDeleteOption_SetsSettings()
+    {
+        // Arrange
+        var appTester = CreateAppTester();
+
+        // Act
+        var result = appTester.Run([DefaultRootPath, "--temp-path", DefaultTempPath,
+            "--yes", "--no-delete"]);
+        var settings = result.Settings as CleanupSettings;
+
+        // Assert
+        Assert.True(settings?.SkipConfirm);
+        Assert.False(settings?.Noop);
         Assert.True(settings?.SkipDelete);
     }
 
@@ -63,7 +82,8 @@ public sealed class CleanupCliTests
 
         // Assert
         Assert.True(settings?.SkipConfirm);
-        Assert.True(settings?.SkipDelete);
+        Assert.True(settings?.Noop);
+        Assert.False(settings?.SkipDelete);
     }
 
     [Fact]

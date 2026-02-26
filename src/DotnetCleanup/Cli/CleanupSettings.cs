@@ -34,7 +34,11 @@ public sealed partial class CleanupSettings : CommandSettings
     public bool SkipConfirm { get; init; }
 
     [CommandOption("--noop|--whatif|--what-if")]
-    [Description("Skip deleting files.")]
+    [Description("No-op mode: list matching paths without moving or deleting files.")]
+    public bool Noop { get; init; }
+
+    [CommandOption("--no-delete")]
+    [Description("Skip deleting files after moving them to temporary folder.")]
     public bool SkipDelete { get; init; }
 
     [CommandOption("--no-move")]
@@ -78,4 +82,8 @@ public sealed partial class CleanupSettings : CommandSettings
     public bool IsVerbosityNormal() => Verbosity >= VerbosityLevel.Normal;
 
     public bool IsVerbosityDetailed() => Verbosity >= VerbosityLevel.Detailed;
+
+    public bool ShouldSkipMove() => Noop || SkipMove;
+
+    public bool ShouldSkipDelete() => Noop || SkipDelete;
 }

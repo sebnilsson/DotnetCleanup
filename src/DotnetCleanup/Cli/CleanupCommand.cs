@@ -17,7 +17,7 @@ public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
 
         service.OnMovePathsStepStart += () =>
         {
-            if (settings.SkipMove)
+            if (settings.ShouldSkipMove())
             {
                 WriteVerbosityNormal("[cyan]Skipping moving files[/]");
             }
@@ -29,7 +29,7 @@ public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
 
         service.OnDeletePathsStepStart += () =>
         {
-            if (settings.SkipDelete)
+            if (settings.ShouldSkipDelete())
             {
                 WriteVerbosityNormal("[cyan]Skipping deleting files[/]");
             }
@@ -50,8 +50,8 @@ public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
             WriteVerbosityNormal($"[blue]{step.Successes.Count} files found[/]");
         };
 
-        service.OnMovePathsStepDone += (step) => WriteStepCompleted(settings.SkipMove, step, "Move");
-        service.OnDeletePathsStepDone += (step) => WriteStepCompleted(settings.SkipDelete, step, "Delete");
+        service.OnMovePathsStepDone += (step) => WriteStepCompleted(settings.ShouldSkipMove(), step, "Move");
+        service.OnDeletePathsStepDone += (step) => WriteStepCompleted(settings.ShouldSkipDelete(), step, "Delete");
 
         service.OnListPath += (path) => WriteOnPath(path, "gray", "Error listing");
         service.OnMovePath += (path) => WriteOnPath(path, "cyan", "Error moving");

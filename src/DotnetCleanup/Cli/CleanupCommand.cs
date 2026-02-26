@@ -60,21 +60,18 @@ public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
         var result = await console.Status().StartAsync(":broom: Cleanup running...",
             async (_) => service.Cleanup(() =>
             {
-                if (!settings.SkipConfirm)
-                {
-                    var isConfirmed = console.Confirm("Proceed with the cleanup?", defaultValue: false);
-
-                    if (!isConfirmed)
-                    {
-                        console.MarkupLine("[yellow]Cleanup canceled by user[/]");
-                    }
-
-                    return isConfirmed;
-                }
-                else
+                if (settings.SkipConfirm)
                 {
                     return true;
                 }
+
+                var isConfirmed = console.Confirm("Proceed with the cleanup?", defaultValue: false);
+                if (!isConfirmed)
+                {
+                    console.MarkupLine("[yellow]Cleanup canceled by user[/]");
+                }
+
+                return isConfirmed;
             },
             settings,
             cancellationToken));

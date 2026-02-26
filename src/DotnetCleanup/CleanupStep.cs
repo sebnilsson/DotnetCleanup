@@ -1,6 +1,6 @@
 ﻿namespace DotnetCleanup;
 
-public sealed record CleanupStep
+public sealed class CleanupStep
 {
     private readonly Lock _pathsLock = new();
 
@@ -45,9 +45,6 @@ public sealed record CleanupStep
             return s_pathComparer.Equals(x.InitialValue, y.InitialValue);
         }
 
-        public int GetHashCode(PathInfo obj)
-        {
-            return s_pathComparer.GetHashCode(obj.InitialValue ?? string.Empty);
-        }
+        public int GetHashCode(PathInfo obj) => s_pathComparer.GetHashCode(obj.InitialValue);
     }
 }

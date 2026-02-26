@@ -116,20 +116,10 @@ public class InMemoryFileSystem(string[]? directories = null, string[]? files = 
         }
     }
 
-    //public bool FileExists(string path)
-    //{
-    //    return Files.Contains(path);
-    //}
-
     public string GetCurrentDirectory()
     {
         return "C:\\InMemoryCurrentDirectory";
     }
-
-    //public bool GetIsFile(string path)
-    //{
-    //    return Files.Contains(path);
-    //}
 
     public string GetTempPath()
     {

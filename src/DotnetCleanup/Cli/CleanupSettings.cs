@@ -7,13 +7,14 @@ namespace DotnetCleanup.Cli;
 public sealed partial class CleanupSettings : CommandSettings
 {
     public const string DefaultIncludePaths = "**/bin, **/obj, **/node_modules";
-
-    public readonly string[] DefaultIncludePathList = DefaultIncludePaths.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    private static readonly string[] s_defaultIncludePathList = DefaultIncludePaths.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
     public CleanupSettings(IFileSystem fileSystem)
     {
+        ArgumentNullException.ThrowIfNull(fileSystem);
+
         Path = fileSystem.GetCurrentDirectory();
-        Include = DefaultIncludePathList;
+        Include = [.. s_defaultIncludePathList];
         TempPath = fileSystem.GetTempPath();
     }
 

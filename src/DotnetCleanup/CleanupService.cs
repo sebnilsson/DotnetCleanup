@@ -5,45 +5,41 @@ namespace DotnetCleanup;
 
 public sealed class CleanupService(FileSystemService fileSystemService)
 {
-    public delegate void PathHandler(PathInfo path);
+    public event Action<PathInfo>? OnListPath;
 
-    public delegate void StepDoneHandler(CleanupStep stepResult);
+    public event Action<PathInfo>? OnMovePath;
 
-    public delegate void StepStartHandler();
+    public event Action<PathInfo>? OnDeletePath;
 
-    public event PathHandler? OnListPath;
+    public event Action? OnListPathsStepStart;
 
-    public event PathHandler? OnMovePath;
+    public event Action? OnMovePathsStepStart;
 
-    public event PathHandler? OnDeletePath;
+    public event Action? OnDeletePathsStepStart;
 
-    public event StepStartHandler? OnListPathsStepStart;
+    public event Action<CleanupStep>? OnListPathsStepDone;
 
-    public event StepStartHandler? OnMovePathsStepStart;
+    public event Action<CleanupStep>? OnMovePathsStepDone;
 
-    public event StepStartHandler? OnDeletePathsStepStart;
-
-    public event StepDoneHandler? OnListPathsStepDone;
-
-    public event StepDoneHandler? OnMovePathsStepDone;
-
-    public event StepDoneHandler? OnDeletePathsStepDone;
+    public event Action<CleanupStep>? OnDeletePathsStepDone;
 
     public CleanupResult Cleanup(Func<bool> onConfirmCallback, CleanupSettings settings, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(onConfirmCallback);
+        ArgumentNullException.ThrowIfNull(settings);
+
         fileSystemService.ValidateSettings(settings);
 
         var cleanupResult = new CleanupResult();
 
         ListPaths(cleanupResult, settings, cancellationToken);
 
-        var isConfirmed = onConfirmCallback();
-        if (!isConfirmed)
+        if (!onConfirmCallback())
         {
             return cleanupResult;
         }
 
-        var tempPath = settings.Noop ? string.Empty : fileSystemService.EnsureTempDirectory(settings);
+        var tempPath = settings.ShouldSkipMove() ? string.Empty : fileSystemService.EnsureTempDirectory(settings);
 
         MovePaths(cleanupResult, tempPath, settings, cancellationToken);
 
@@ -87,10 +83,13 @@ public sealed class CleanupService(FileSystemService fileSystemService)
         }
         else
         {
-            Parallel.ForEach(cleanupResult.GetStep.Successes, path =>
+            var parallelOptions = new ParallelOptions
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                CancellationToken = cancellationToken
+            };
 
+            Parallel.ForEach(cleanupResult.GetStep.Successes, parallelOptions, path =>
+            {
                 var movePath = fileSystemService.MovePath(tempPath, path, settings);
                 AddPath(cleanupResult.MoveStep, movePath, OnMovePath);
             });
@@ -105,10 +104,13 @@ public sealed class CleanupService(FileSystemService fileSystemService)
 
         if (!settings.ShouldSkipDelete())
         {
-            Parallel.ForEach(cleanupResult.MoveStep.Successes, path =>
+            var parallelOptions = new ParallelOptions
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                CancellationToken = cancellationToken
+            };
 
+            Parallel.ForEach(cleanupResult.MoveStep.Successes, parallelOptions, path =>
+            {
                 var deletePath = fileSystemService.DeletePath(path);
 
                 AddPath(cleanupResult.DeleteStep, deletePath, OnDeletePath);
@@ -118,7 +120,7 @@ public sealed class CleanupService(FileSystemService fileSystemService)
         OnDeletePathsStepDone?.Invoke(cleanupResult.DeleteStep);
     }
 
-    private static void AddPath(CleanupStep step, PathInfo path, PathHandler? pathEventHandler)
+    private static void AddPath(CleanupStep step, PathInfo path, Action<PathInfo>? pathEventHandler)
     {
         var isAdded = path.Exception == null
             ? step.AddSuccess(path)

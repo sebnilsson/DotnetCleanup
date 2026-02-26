@@ -28,20 +28,13 @@ internal sealed class FileSystem : IFileSystem
         return Directory.EnumerateDirectories(rootDirectory, "*", s_enumerationOptions);
     }
 
-    //public bool FileExists(string path) => File.Exists(path);
-
     public string GetCurrentDirectory() => Directory.GetCurrentDirectory();
 
     public string GetTempPath() => Path.GetTempPath();
-
-    //public bool GetIsFile(string path) =>
-    //    File.Exists(path) && ((File.GetAttributes(path) & FileAttributes.Directory) != FileAttributes.Directory);
 
     public void MoveDirectory(string sourcePath, string destinationPath) =>
         Directory.Move(sourcePath, destinationPath);
 
     public void MoveFile(string sourcePath, string destinationPath) =>
         File.Move(sourcePath, destinationPath);
-
-
 }

@@ -2,14 +2,10 @@
 
 namespace DotnetCleanup.Spectre;
 
-internal sealed class SimpleTypeResolver : ITypeResolver
+internal sealed class SimpleTypeResolver(IReadOnlyDictionary<Type, Func<SimpleTypeResolver, object>> registrations) : ITypeResolver
 {
-    private readonly IReadOnlyDictionary<Type, Func<SimpleTypeResolver, object>> _registrations;
-
-    public SimpleTypeResolver(IReadOnlyDictionary<Type, Func<SimpleTypeResolver, object>> registrations)
-    {
-        _registrations = registrations;
-    }
+    private readonly IReadOnlyDictionary<Type, Func<SimpleTypeResolver, object>> _registrations =
+        registrations ?? throw new ArgumentNullException(nameof(registrations));
 
     public object? Resolve(Type? type)
     {

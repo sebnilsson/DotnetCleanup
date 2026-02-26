@@ -1,8 +1,8 @@
 ﻿namespace DotnetCleanup;
 
-public sealed record CleanupResult
+public sealed class CleanupResult
 {
-    public CleanupStep GetStep { get; } = new CleanupStep();
-    public CleanupStep MoveStep { get; } = new CleanupStep();
-    public CleanupStep DeleteStep { get; } = new CleanupStep();
+    public CleanupStep GetStep { get; } = new();
+    public CleanupStep MoveStep { get; } = new();
+    public CleanupStep DeleteStep { get; } = new();
 }

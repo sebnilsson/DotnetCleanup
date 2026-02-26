@@ -3,12 +3,15 @@ using Microsoft.Extensions.FileSystemGlobbing;
 
 namespace DotnetCleanup.IO;
 
-public class FileSystemService(IFileSystem fileSystem)
+public sealed class FileSystemService(IFileSystem fileSystem)
 {
     private static readonly Lock s_createDirectoryLock = new();
+    private readonly IFileSystem _fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
 
     public IEnumerable<PathInfo> GetPaths(CleanupSettings settings, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(settings);
+
         var matcher = new Matcher(StringComparison.OrdinalIgnoreCase);
         matcher.AddIncludePatterns(settings.Include);
         matcher.AddExcludePatterns(settings.Exclude);
@@ -18,6 +21,9 @@ public class FileSystemService(IFileSystem fileSystem)
 
     public PathInfo MovePath(string tempPath, PathInfo path, CleanupSettings settings)
     {
+        ArgumentNullException.ThrowIfNull(path);
+        ArgumentNullException.ThrowIfNull(settings);
+
         var relativePath = PathUtility.GetRelativePath(settings.Path, path.Value);
         if (string.IsNullOrWhiteSpace(relativePath))
         {
@@ -34,11 +40,11 @@ public class FileSystemService(IFileSystem fileSystem)
 
             if (path.IsFile)
             {
-                fileSystem.MoveFile(path.Value, targetPath);
+                _fileSystem.MoveFile(path.Value, targetPath);
             }
             else
             {
-                fileSystem.MoveDirectory(path.Value, targetPath);
+                _fileSystem.MoveDirectory(path.Value, targetPath);
             }
 
             path.SetMovePath(targetPath);
@@ -55,17 +61,19 @@ public class FileSystemService(IFileSystem fileSystem)
 
     public PathInfo DeletePath(PathInfo path)
     {
+        ArgumentNullException.ThrowIfNull(path);
+
         try
         {
             var deletePath = !string.IsNullOrWhiteSpace(path.MovePath) ? path.MovePath : path.Value;
 
             if (path.IsFile)
             {
-                fileSystem.DeleteFile(deletePath);
+                _fileSystem.DeleteFile(deletePath);
             }
             else
             {
-                fileSystem.DeleteDirectory(deletePath);
+                _fileSystem.DeleteDirectory(deletePath);
             }
         }
         catch (Exception ex) when (
@@ -80,11 +88,13 @@ public class FileSystemService(IFileSystem fileSystem)
 
     public string EnsureTempDirectory(CleanupSettings settings)
     {
+        ArgumentNullException.ThrowIfNull(settings);
+
         var path = Path.Combine(settings.TempPath, $"~dotnetcleanup-{settings.StartedAt:yyyyMMdd-HHmmss}");
 
-        if (!fileSystem.DirectoryExists(path))
+        if (!_fileSystem.DirectoryExists(path))
         {
-            fileSystem.CreateDirectory(path);
+            _fileSystem.CreateDirectory(path);
         }
 
         return path;
@@ -92,15 +102,17 @@ public class FileSystemService(IFileSystem fileSystem)
 
     public void ValidateSettings(CleanupSettings settings)
     {
+        ArgumentNullException.ThrowIfNull(settings);
+
         if (settings.Include.Length == 0)
         {
             throw new ArgumentOutOfRangeException(nameof(settings), "At least one include pattern must be specified.");
         }
-        if (!fileSystem.DirectoryExists(settings.Path))
+        if (!_fileSystem.DirectoryExists(settings.Path))
         {
             throw new DirectoryNotFoundException($"The given path does not exist: {settings.Path}");
         }
-        if (!fileSystem.DirectoryExists(settings.TempPath))
+        if (!_fileSystem.DirectoryExists(settings.TempPath))
         {
             throw new DirectoryNotFoundException($"The given temporary path does not exist: {settings.TempPath}");
         }
@@ -108,13 +120,13 @@ public class FileSystemService(IFileSystem fileSystem)
 
     private void EnsureDirectory(string path)
     {
-        if (!fileSystem.DirectoryExists(path))
+        if (!_fileSystem.DirectoryExists(path))
         {
             lock (s_createDirectoryLock)
             {
-                if (!fileSystem.DirectoryExists(path))
+                if (!_fileSystem.DirectoryExists(path))
                 {
-                    fileSystem.CreateDirectory(path);
+                    _fileSystem.CreateDirectory(path);
                 }
             }
         }
@@ -170,8 +182,7 @@ public class FileSystemService(IFileSystem fileSystem)
     private static bool MatchPath(string rootPath, string path, Matcher matcher)
     {
         var relativePath = PathUtility.GetRelativePath(rootPath, path);
-        var result = !string.IsNullOrWhiteSpace(relativePath) ? matcher.Match(relativePath) : null;
-        return result?.HasMatches ?? false;
+        return !string.IsNullOrWhiteSpace(relativePath) && matcher.Match(relativePath).HasMatches;
     }
 
     private static bool IsPathEnumerationException(Exception exception)
@@ -185,7 +196,7 @@ public class FileSystemService(IFileSystem fileSystem)
     {
         try
         {
-            files = fileSystem.EnumerateFiles(path);
+            files = _fileSystem.EnumerateFiles(path);
             exception = null;
             return true;
         }
@@ -201,7 +212,7 @@ public class FileSystemService(IFileSystem fileSystem)
     {
         try
         {
-            directories = fileSystem.EnumerateDirectories(path);
+            directories = _fileSystem.EnumerateDirectories(path);
             exception = null;
             return true;
         }

@@ -8,7 +8,9 @@ public sealed class PathInfo
 {
     public PathInfo(string value, bool isFile)
     {
-        var normalizedPath = PathUtility.GetNormalizedPath(value) ?? string.Empty;
+        ArgumentException.ThrowIfNullOrWhiteSpace(value);
+        var normalizedPath = PathUtility.GetNormalizedPath(value)
+            ?? throw new ArgumentException("Path value must resolve to a non-empty normalized path.", nameof(value));
 
         Raw = value;
         InitialValue = normalizedPath;
@@ -22,11 +24,11 @@ public sealed class PathInfo
 
     public bool IsFile { get; }
 
-    public string MovePath { get; set; } = string.Empty;
+    public string MovePath { get; private set; } = string.Empty;
 
     public string Parent => PathUtility.GetParentPath(Value) ?? string.Empty;
 
-    public string Value { get; private set; }
+    public string Value { get; }
 
     public string InitialValue { get; }
 
@@ -34,7 +36,9 @@ public sealed class PathInfo
 
     public void SetMovePath(string value)
     {
-        MovePath = PathUtility.GetNormalizedPath(value) ?? string.Empty;
+        ArgumentException.ThrowIfNullOrWhiteSpace(value);
+        MovePath = PathUtility.GetNormalizedPath(value)
+            ?? throw new ArgumentException("Move path must resolve to a non-empty normalized path.", nameof(value));
     }
 
     public void SetFailedOnList(Exception exception)
@@ -54,6 +58,8 @@ public sealed class PathInfo
 
     private void SetFailed(Exception exception, PathFailureStage failedOn)
     {
+        ArgumentNullException.ThrowIfNull(exception);
+
         Exception = exception;
         FailedOn = failedOn;
     }

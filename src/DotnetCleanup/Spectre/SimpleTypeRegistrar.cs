@@ -22,8 +22,5 @@ internal sealed class SimpleTypeRegistrar : ITypeRegistrar
         _registrations[service] = _ => factory();
     }
 
-    public ITypeResolver Build()
-    {
-        return new SimpleTypeResolver(_registrations);
-    }
+    public ITypeResolver Build() => new SimpleTypeResolver(_registrations);
 }

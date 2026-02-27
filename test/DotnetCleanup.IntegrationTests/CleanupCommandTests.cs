@@ -101,17 +101,44 @@ public sealed class CleanupCommandTests
     }
 
     [Fact]
-    public void Run_NonExistingTempPath_ThrowsDirectoryNotFoundException()
+    public void Run_NonExistingTempPath_WithMoveEnabled_ThrowsDirectoryNotFoundException()
     {
         // Arrange
         var appTester = CreateAppTester(new AppTesterConfig(Directories: [DefaultRootPath]));
 
         // Act
-        var exception = Assert.Throws<DirectoryNotFoundException>(() => appTester.Run([DefaultRootPath, "--temp-path", DefaultTempPath,
-            "-y", "--noop"]));
+        var exception = Assert.Throws<DirectoryNotFoundException>(() => appTester.Run([DefaultRootPath, "--temp-path", DefaultTempPath, "-y"]));
 
         // Assert
         Assert.Equal($"The given temporary path does not exist: {DefaultTempPath}", exception.Message);
+    }
+
+    [Fact]
+    public void Run_NonExistingTempPath_WithNoop_DoesNotThrow()
+    {
+        // Arrange
+        var appTester = CreateAppTester(new AppTesterConfig(Directories: [DefaultRootPath]));
+
+        // Act
+        var result = appTester.Run([DefaultRootPath, "--temp-path", DefaultTempPath, "-y", "--noop"]);
+        var settings = Assert.IsType<CleanupSettings>(result.Settings);
+
+        // Assert
+        Assert.True(settings.Noop);
+    }
+
+    [Fact]
+    public void Run_NonExistingTempPath_WithNoMove_DoesNotThrow()
+    {
+        // Arrange
+        var appTester = CreateAppTester(new AppTesterConfig(Directories: [DefaultRootPath]));
+
+        // Act
+        var result = appTester.Run([DefaultRootPath, "--temp-path", DefaultTempPath, "-y", "--no-move"]);
+        var settings = Assert.IsType<CleanupSettings>(result.Settings);
+
+        // Assert
+        Assert.True(settings.SkipMove);
     }
 
     [Fact]

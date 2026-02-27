@@ -39,4 +39,4 @@ After any changes to code files, follow this checklist:
 
 After any changes to any files, follow this checklist:
 - Update relevant documentation
-- If new insights are made, add it to the AGENTS.md file for future reference
+- If new insights are made, add it to the AGENTS.md file for future reference. Only do this for non-one-off cases.

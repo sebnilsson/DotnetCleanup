@@ -112,7 +112,7 @@ public sealed class FileSystemService(IFileSystem fileSystem)
         {
             throw new DirectoryNotFoundException($"The given path does not exist: {settings.Path}");
         }
-        if (!_fileSystem.DirectoryExists(settings.TempPath))
+        if (!settings.ShouldSkipMove() && !_fileSystem.DirectoryExists(settings.TempPath))
         {
             throw new DirectoryNotFoundException($"The given temporary path does not exist: {settings.TempPath}");
         }

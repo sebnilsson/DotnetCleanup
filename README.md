@@ -77,4 +77,5 @@ cleanup --no-move -y
 - `--no-delete` keeps moved paths in temp staging and skips deletion.
 - `--noop` lists matching paths but skips both move and delete.
 - Temp staging defaults to the system temp path; override with `--temp-path`.
+- Temp path is only checked when move before delete is enabled (default).
 - Verbosity levels: `minimal`, `normal`, `detailed`.

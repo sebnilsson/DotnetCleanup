@@ -11,6 +11,101 @@ public sealed class CleanupServiceTests
     private const string TempPath = InMemoryFileSystem.DefaultTempPath;
 
     [Fact]
+    public void Cleanup_GlobIncludePatterns_ListsOnlyMatchingPaths()
+    {
+        // Arrange
+        var projectAObjPath = $@"{RootPath}\projectA\obj";
+        var projectABinPath = $@"{RootPath}\projectA\bin";
+        var projectBObjPath = $@"{RootPath}\projectB\obj";
+
+        var fileSystem = CreateFileSystem(
+            directories:
+            [
+                $@"{RootPath}\projectA",
+                projectABinPath,
+                projectAObjPath,
+                $@"{RootPath}\projectB",
+                projectBObjPath
+            ]);
+
+        var service = CreateService(fileSystem);
+        var settings = CreateSettings(
+            fileSystem,
+            noop: true,
+            include: ["**/obj"]);
+
+        // Act
+        var result = service.Cleanup(() => true, settings, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(
+            [projectAObjPath, projectBObjPath],
+            result.GetStep.Successes.Select(x => x.Value).Order(StringComparer.OrdinalIgnoreCase).ToArray());
+    }
+
+    [Fact]
+    public void Cleanup_GlobExcludePatterns_ExcludesMatchingPaths()
+    {
+        // Arrange
+        var projectABinPath = $@"{RootPath}\projectA\bin";
+        var projectBBinPath = $@"{RootPath}\projectB\bin";
+        var fileSystem = CreateFileSystem(
+            directories:
+            [
+                $@"{RootPath}\projectA",
+                projectABinPath,
+                $@"{RootPath}\projectB",
+                projectBBinPath
+            ]);
+
+        var service = CreateService(fileSystem);
+        var settings = CreateSettings(
+            fileSystem,
+            noop: true,
+            include: ["**/bin"],
+            exclude: ["projectA/**"]);
+
+        // Act
+        var result = service.Cleanup(() => true, settings, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(
+            [projectBBinPath],
+            result.GetStep.Successes.Select(x => x.Value).Order(StringComparer.OrdinalIgnoreCase).ToArray());
+    }
+
+    [Fact]
+    public void Cleanup_ExcludePatterns_TakePrecedenceOverIncludePatterns()
+    {
+        // Arrange
+        var projectABinPath = $@"{RootPath}\projectA\bin";
+        var projectBBinPath = $@"{RootPath}\projectB\bin";
+        var fileSystem = CreateFileSystem(
+            directories:
+            [
+                $@"{RootPath}\projectA",
+                projectABinPath,
+                $@"{RootPath}\projectB",
+                projectBBinPath
+            ]);
+
+        var service = CreateService(fileSystem);
+        var settings = CreateSettings(
+            fileSystem,
+            noop: true,
+            include: ["**/bin", "projectA/bin"],
+            exclude: ["projectA/bin"]);
+
+        // Act
+        var result = service.Cleanup(() => true, settings, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(
+            [projectBBinPath],
+            result.GetStep.Successes.Select(x => x.Value).Order(StringComparer.OrdinalIgnoreCase).ToArray());
+    }
+
+    [Fact]
     public void Cleanup_UsesSinglePathInfoInstanceAcrossListMoveAndDelete()
     {
         // Arrange
@@ -102,6 +197,12 @@ public sealed class CleanupServiceTests
         var fileSystem = CreateFileSystem(directories: [binPath]);
 
         var service = CreateService(fileSystem);
+        var movePathEventCount = 0;
+        var deletePathEventCount = 0;
+
+        service.OnMovePath += (_) => movePathEventCount++;
+        service.OnDeletePath += (_) => deletePathEventCount++;
+
         var settings = CreateSettings(fileSystem, skipMove: true);
 
         // Act
@@ -114,7 +215,10 @@ public sealed class CleanupServiceTests
 
         Assert.Same(listPath, movePath);
         Assert.Same(listPath, deletePath);
+        Assert.True(string.IsNullOrWhiteSpace(movePath.MovePath));
         Assert.DoesNotContain(binPath, fileSystem.Directories, StringComparer.OrdinalIgnoreCase);
+        Assert.Equal(1, movePathEventCount);
+        Assert.Equal(1, deletePathEventCount);
     }
 
     [Fact]
@@ -125,6 +229,12 @@ public sealed class CleanupServiceTests
         var fileSystem = CreateFileSystem(directories: [binPath]);
 
         var service = CreateService(fileSystem);
+        var movePathEventCount = 0;
+        var deletePathEventCount = 0;
+
+        service.OnMovePath += (_) => movePathEventCount++;
+        service.OnDeletePath += (_) => deletePathEventCount++;
+
         var settings = CreateSettings(fileSystem, noop: true);
 
         // Act
@@ -139,6 +249,8 @@ public sealed class CleanupServiceTests
         Assert.Empty(result.DeleteStep.Successes);
         Assert.Empty(result.DeleteStep.Failed);
         Assert.Contains(binPath, fileSystem.Directories, StringComparer.OrdinalIgnoreCase);
+        Assert.Equal(0, movePathEventCount);
+        Assert.Equal(0, deletePathEventCount);
     }
 
     [Fact]
@@ -149,6 +261,12 @@ public sealed class CleanupServiceTests
         var fileSystem = CreateFileSystem(directories: [binPath]);
 
         var service = CreateService(fileSystem);
+        var movePathEventCount = 0;
+        var deletePathEventCount = 0;
+
+        service.OnMovePath += (_) => movePathEventCount++;
+        service.OnDeletePath += (_) => deletePathEventCount++;
+
         var settings = CreateSettings(fileSystem, skipDelete: true);
         var tempRunPath = Path.Combine(TempPath, $"~dotnetcleanup-{settings.StartedAt:yyyyMMdd-HHmmss}");
         var movedBinPath = Path.Combine(tempRunPath, @"bin");
@@ -165,6 +283,8 @@ public sealed class CleanupServiceTests
         Assert.Empty(result.DeleteStep.Failed);
         Assert.DoesNotContain(binPath, fileSystem.Directories, StringComparer.OrdinalIgnoreCase);
         Assert.Contains(movedBinPath, fileSystem.Directories, StringComparer.OrdinalIgnoreCase);
+        Assert.Equal(1, movePathEventCount);
+        Assert.Equal(0, deletePathEventCount);
     }
 
     [Fact]
@@ -271,14 +391,20 @@ public sealed class CleanupServiceTests
         return new InMemoryFileSystem(allDirectories, files);
     }
 
-    private static CleanupSettings CreateSettings(IFileSystem fileSystem, bool skipMove = false, bool skipDelete = false, bool noop = false)
+    private static CleanupSettings CreateSettings(
+        IFileSystem fileSystem,
+        bool skipMove = false,
+        bool skipDelete = false,
+        bool noop = false,
+        string[]? include = null,
+        string[]? exclude = null)
     {
         return new CleanupSettings(fileSystem)
         {
             Path = RootPath,
             TempPath = TempPath,
-            Include = ["**/bin"],
-            Exclude = [],
+            Include = include ?? ["**/bin"],
+            Exclude = exclude ?? [],
             SkipConfirm = true,
             Noop = noop,
             SkipMove = skipMove,

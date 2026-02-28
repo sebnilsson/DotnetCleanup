@@ -1,0 +1,43 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+
+name: Publish to NuGet
+on:
+  workflow_dispatch: # Allow running the workflow manually from the GitHub UI
+  push:
+    branches:
+      - 'main'       # Run the workflow when pushing to the main branch
+
+env:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+  DOTNET_NOLOGO: true
+  NuGetDirectory: ${{ github.workspace}}/nuget
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+
+    - name: .NET Restore
+      run: dotnet restore
+
+    - name: .NET Build
+      run: dotnet build --no-restore --configuration Release
+
+    - name: .NET Test
+      run: dotnet test --no-restore
+
+    - name: .NET Pack
+      run: dotnet pack --no-restore --configuration Release --output ${{ env.NuGetDirectory }}
+
+    - name: NuGet Push
+      run: dotnet nuget push ${{ env.NuGetDirectory }}/*.nupkg  --api-key ${{ secrets.NUGET_APIKEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate

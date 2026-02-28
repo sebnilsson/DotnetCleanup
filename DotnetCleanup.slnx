@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/GitHub/">
+    <File Path=".github/workflows/publish.yml" />
+  </Folder>
   <Folder Name="/Solution items/">
     <File Path=".editorconfig" />
     <File Path=".gitattributes" />

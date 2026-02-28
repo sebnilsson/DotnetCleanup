@@ -3,8 +3,10 @@ using DotnetCleanup.IO;
 
 namespace DotnetCleanup;
 
-public sealed class CleanupService(FileSystemService fileSystemService)
+public sealed class CleanupService(IFileSystem fileSystem)
 {
+    private readonly FileSystemService _fileSystemService = new(fileSystem);
+
     public event Action<PathInfo>? OnListPath;
 
     public event Action<PathInfo>? OnMovePath;
@@ -28,7 +30,7 @@ public sealed class CleanupService(FileSystemService fileSystemService)
         ArgumentNullException.ThrowIfNull(onConfirmCallback);
         ArgumentNullException.ThrowIfNull(settings);
 
-        fileSystemService.ValidateSettings(settings);
+        _fileSystemService.ValidateSettings(settings);
 
         var cleanupResult = new CleanupResult();
 
@@ -39,7 +41,7 @@ public sealed class CleanupService(FileSystemService fileSystemService)
             return cleanupResult;
         }
 
-        var tempPath = settings.ShouldSkipMove() ? string.Empty : fileSystemService.EnsureTempDirectory(settings);
+        var tempPath = settings.ShouldSkipMove() ? string.Empty : _fileSystemService.EnsureTempDirectory(settings);
 
         MovePaths(cleanupResult, tempPath, settings, cancellationToken);
 
@@ -52,7 +54,7 @@ public sealed class CleanupService(FileSystemService fileSystemService)
     {
         OnListPathsStepStart?.Invoke();
 
-        foreach (var path in fileSystemService.GetPaths(settings, cancellationToken))
+        foreach (var path in _fileSystemService.GetPaths(settings, cancellationToken))
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -90,7 +92,7 @@ public sealed class CleanupService(FileSystemService fileSystemService)
 
             Parallel.ForEach(cleanupResult.GetStep.Successes, parallelOptions, path =>
             {
-                var movePath = fileSystemService.MovePath(tempPath, path, settings);
+                var movePath = _fileSystemService.MovePath(tempPath, path, settings);
                 AddPath(cleanupResult.MoveStep, movePath, OnMovePath);
             });
         }
@@ -111,7 +113,7 @@ public sealed class CleanupService(FileSystemService fileSystemService)
 
             Parallel.ForEach(cleanupResult.MoveStep.Successes, parallelOptions, path =>
             {
-                var deletePath = fileSystemService.DeletePath(path);
+                var deletePath = _fileSystemService.DeletePath(path);
 
                 AddPath(cleanupResult.DeleteStep, deletePath, OnDeletePath);
             });

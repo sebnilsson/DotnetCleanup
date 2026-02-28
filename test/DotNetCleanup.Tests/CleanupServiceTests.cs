@@ -28,7 +28,7 @@ public sealed class CleanupServiceTests
                 projectBObjPath
             ]);
 
-        var service = CreateService(fileSystem);
+        var service = new CleanupService(fileSystem);
         var settings = CreateSettings(
             fileSystem,
             noop: true,
@@ -58,7 +58,7 @@ public sealed class CleanupServiceTests
                 projectBBinPath
             ]);
 
-        var service = CreateService(fileSystem);
+        var service = new CleanupService(fileSystem);
         var settings = CreateSettings(
             fileSystem,
             noop: true,
@@ -89,7 +89,7 @@ public sealed class CleanupServiceTests
                 projectBBinPath
             ]);
 
-        var service = CreateService(fileSystem);
+        var service = new CleanupService(fileSystem);
         var settings = CreateSettings(
             fileSystem,
             noop: true,
@@ -116,7 +116,7 @@ public sealed class CleanupServiceTests
                 $@"{RootPath}\src\bin"
             ]);
 
-        var service = CreateService(fileSystem);
+        var service = new CleanupService(fileSystem);
         var settings = CreateSettings(fileSystem);
         var tempRunPath = Path.Combine(TempPath, $"~dotnetcleanup-{settings.StartedAt:yyyyMMdd-HHmmss}");
         var expectedMovedPath = Path.Combine(tempRunPath, @"src\bin");
@@ -145,7 +145,7 @@ public sealed class CleanupServiceTests
 
         fileSystem.MoveDirectoryExceptions.Add(binPath, new IOException("move failed"));
 
-        var service = CreateService(fileSystem);
+        var service = new CleanupService(fileSystem);
         var settings = CreateSettings(fileSystem);
 
         // Act
@@ -169,7 +169,7 @@ public sealed class CleanupServiceTests
         var binPath = $@"{RootPath}\bin";
         var fileSystem = CreateFileSystem(directories: [binPath]);
 
-        var service = CreateService(fileSystem);
+        var service = new CleanupService(fileSystem);
         var settings = CreateSettings(fileSystem);
         var tempRunPath = Path.Combine(TempPath, $"~dotnetcleanup-{settings.StartedAt:yyyyMMdd-HHmmss}");
         var movedBinPath = Path.Combine(tempRunPath, @"bin");
@@ -196,7 +196,7 @@ public sealed class CleanupServiceTests
         var binPath = $@"{RootPath}\bin";
         var fileSystem = CreateFileSystem(directories: [binPath]);
 
-        var service = CreateService(fileSystem);
+        var service = new CleanupService(fileSystem);
         var movePathEventCount = 0;
         var deletePathEventCount = 0;
 
@@ -228,7 +228,7 @@ public sealed class CleanupServiceTests
         var binPath = $@"{RootPath}\bin";
         var fileSystem = CreateFileSystem(directories: [binPath]);
 
-        var service = CreateService(fileSystem);
+        var service = new CleanupService(fileSystem);
         var movePathEventCount = 0;
         var deletePathEventCount = 0;
 
@@ -260,7 +260,7 @@ public sealed class CleanupServiceTests
         var binPath = $@"{RootPath}\bin";
         var fileSystem = CreateFileSystem(directories: [binPath]);
 
-        var service = CreateService(fileSystem);
+        var service = new CleanupService(fileSystem);
         var movePathEventCount = 0;
         var deletePathEventCount = 0;
 
@@ -294,7 +294,7 @@ public sealed class CleanupServiceTests
         var fileSystem = new InMemoryFileSystem();
         fileSystem.ListFileExceptions.Add(RootPath, new IOException("list failed"));
 
-        var service = CreateService(fileSystem);
+        var service = new CleanupService(fileSystem);
         var settings = CreateSettings(fileSystem);
 
         // Act
@@ -335,7 +335,7 @@ public sealed class CleanupServiceTests
         fileSystem.ListDirectoryExceptions.Add($@"{brokenProjectPath}\bin", new IOException("list failed for path"));
         fileSystem.MoveDirectoryExceptions.Add(projectBBinPath, new IOException("move failed for path"));
 
-        var service = CreateService(fileSystem);
+        var service = new CleanupService(fileSystem);
         var settings = CreateSettings(fileSystem);
         var tempRunPath = Path.Combine(TempPath, $"~dotnetcleanup-{settings.StartedAt:yyyyMMdd-HHmmss}");
         var movedProjectAPath = Path.Combine(tempRunPath, @"projectA\bin");
@@ -369,12 +369,6 @@ public sealed class CleanupServiceTests
 
         Assert.DoesNotContain(result.DeleteStep.Successes, x => x.Value == projectBBinPath);
         Assert.DoesNotContain(result.DeleteStep.Failed, x => x.Value == projectBBinPath);
-    }
-
-    private static CleanupService CreateService(IFileSystem fileSystem)
-    {
-        var fileSystemService = new FileSystemService(fileSystem);
-        return new CleanupService(fileSystemService);
     }
 
     private static InMemoryFileSystem CreateFileSystem(string[]? directories = null, string[]? files = null)

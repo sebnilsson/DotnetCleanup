@@ -1,116 +1,61 @@
 # DotnetCleanup Improvement Plan
 
-## Architecture & Design
+## Product & CLI correctness
 
-- [ ] **#1 — Decouple `CleanupService` from `FileSystemService`**
-  `CleanupService.cs:14` — `FileSystemService` is instantiated directly inside the constructor rather than injected. Extract an interface or inject `FileSystemService` through the constructor to enable independent mocking and testing.
+- [ ] **#1 - Align package identity, repository metadata, and install docs**
+  `src/DotnetCleanup/DotnetCleanup.csproj:9,17-20` + `README.md` - package metadata still points to `cleanup` / `DotnetGuid`, while the README tells users to install `dotnet-cleanup`. Pick one published identity and make the project file and docs consistent.
 
-- [ ] **#2 — Make `FileSystemService` directory creation lock instance-scoped**
-  `FileSystemService.cs:8` — `s_createDirectoryLock` is `static`, meaning all instances share one process-wide lock. Two independent cleanup operations would contend unnecessarily. Make it an instance field.
+- [ ] **#2 - Fix the misleading `--confirm` alias**
+  `src/DotnetCleanup/Cli/CleanupSettings.cs:33-35` - `--confirm` currently sets `SkipConfirm = true`, which is the opposite of what the flag name implies. Remove the alias or rename the option so help text, behavior, and tests agree.
 
-- [ ] **#3 — Extract console rendering logic from `CleanupCommand`**
-  `CleanupCommand.cs` — The command handler subscribes to 9 events and contains all console rendering logic mixed with confirmation prompt handling. Extract presentation concerns into a separate result renderer/formatter class.
+- [ ] **#3 - Make the final summary reflect the last executed stage**
+  `src/DotnetCleanup/Cli/CleanupCommand.cs:42-50,83` - normal-verbosity output always summarizes `DeleteStep`, so `--noop` and `--no-delete` runs end with `0 succeeded.` even when matches were found or moved. Summarize the effective last stage instead.
 
-- [ ] **#4 — Audit mutable `PathInfo` usage in `HashSet`**
-  `PathInfo.cs` — Objects are mutated via `SetMovePath`, `SetFailedOnMove`, etc., while stored in `CleanupStep`'s `HashSet<PathInfo>`. The comparer uses `InitialValue` (immutable) so this works today, but the pattern is fragile. Add a comment or consider making the mutable state separate.
+- [ ] **#4 - Fix singular/plural wording in the list summary**
+  `src/DotnetCleanup/Cli/CleanupCommand.cs:50` - `1 files found` should render as `1 file found`.
 
-- [ ] **#5 — Remove unused `Microsoft.Extensions.Logging` dependency**
-  `DotnetCleanup.csproj` references `Microsoft.Extensions.Logging` but no `ILogger` is used anywhere.
+## Robustness
 
-## Code Quality
+- [ ] **#5 - Remove temp-directory races and name collisions**
+  `src/DotnetCleanup/IO/FileSystemService.cs:89-97` - temp directories use second-precision timestamps and are created via `DirectoryExists` + `CreateDirectory`. Make names collision-resistant and rely on idempotent creation.
 
-- [ ] **#6 — Rename `CleanupResult.GetStep` to `ListStep`**
-  `CleanupResult.cs:5` — `GetStep` reads like a method call. `ListStep` is consistent with `MoveStep` and `DeleteStep`.
+- [ ] **#6 - Rework directory creation so the static lock is unnecessary**
+  `src/DotnetCleanup/IO/FileSystemService.cs:8,123-129` - `s_createDirectoryLock` serializes unrelated cleanup operations across the whole process. Once directory creation is safe, remove the process-wide lock or narrow it to the actual contention point.
 
-- [ ] **#7 — Fix singular/plural in "files found" message**
-  `CleanupCommand.cs:50` — `"{step.Successes.Count} files found"` should handle singular ("1 file found") vs plural ("2 files found").
+- [ ] **#7 - Turn Ctrl+C into coordinated cancellation**
+  `src/DotnetCleanup/Program.cs:7,35-38` - the `CancelKeyPress` handler only resets console colors. Wire Ctrl+C into a `CancellationTokenSource` and let the active cleanup stage stop cleanly.
 
-- [ ] **#8 — Reconcile inconsistent path normalization direction**
-  `PathUtility.cs:9` — `GetNormalizedPath` normalizes to OS `DirectorySeparatorChar`, but `GetRelativePath` converts to forward slashes. The normalization direction is inconsistent across methods.
+- [ ] **#8 - Surface staged temp paths when deletes fail**
+  `src/DotnetCleanup/Cli/CleanupCommand.cs:55-58,87-100` + `src/DotnetCleanup/PathInfo.cs` - after a successful move, delete failures are reported against `path.Value`, but the leftover data is under `MovePath`. Show the staged path in the error output or summary so users can find the orphaned content.
 
-- [ ] **#9 — Review unnecessary `async` wrapping in `CleanupCommand.ExecuteAsync`**
-  `CleanupCommand.cs:11` — The method uses `await` only for the Spectre status spinner; the actual callback is synchronous. Consider whether the async wrapper adds value or just overhead.
+## Design & maintainability
 
-- [ ] **#10 — Simplify exception catch filters with `or` pattern**
-  `FileSystemService.cs:52-54` — `catch (Exception ex) when (ex is UnauthorizedAccessException || ex is IOException)` can be simplified to `catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)`.
+- [ ] **#9 - Rename `CleanupResult.GetStep` to `ListStep`**
+  `src/DotnetCleanup/CleanupResult.cs:5` + `src/DotnetCleanup/CleanupService.cs` - `GetStep` reads like a method call rather than the list-stage result and is inconsistent with `MoveStep` / `DeleteStep`.
 
-## Robustness & Edge Cases
+- [ ] **#10 - Remove the unused logging dependency**
+  `src/DotnetCleanup/DotnetCleanup.csproj:32` - `Microsoft.Extensions.Logging` is referenced but not used anywhere in the project.
 
-- [ ] **#11 — Add `MaxDegreeOfParallelism` to `Parallel.ForEach`**
-  `CleanupService.cs:95-104, 116-127` — `ParallelOptions` only sets `CancellationToken`. On large repos this could saturate I/O. Consider making it configurable or setting a reasonable default.
+- [ ] **#11 - Extract console rendering from `CleanupCommand`**
+  `src/DotnetCleanup/Cli/CleanupCommand.cs` - event subscriptions, confirmation prompting, and console markup all live in one method. Move rendering and summary formatting into a dedicated component to simplify future changes.
 
-- [ ] **#12 — Fix TOCTOU race in `EnsureTempDirectory`**
-  `FileSystemService.cs:95-98` — `DirectoryExists` + `CreateDirectory` is racy. `Directory.CreateDirectory` is idempotent, so just call it directly.
+## Test gaps
 
-- [ ] **#13 — Prevent temp directory name collisions**
-  `FileSystemService.cs:93` — Timestamp uses second precision (`yyyyMMdd-HHmmss`). Two runs in the same second collide. Add milliseconds or a random suffix.
+- [ ] **#12 - Add isolated `FileSystemService` tests**
+  No tests currently target `FileSystemService` directly. Cover `ValidateSettings`, path enumeration, move target calculation, delete target selection, and temp-directory creation.
 
-- [ ] **#14 — Improve `CancelKeyPress` handler**
-  `Program.cs:36-38` — Handler only resets console color. It doesn't set `e.Cancel = true` or trigger a `CancellationTokenSource`. Actual cancellation relies on implicit Spectre behavior.
+- [ ] **#13 - Add file-based cleanup tests**
+  `test/DotNetCleanup.Tests/CleanupServiceTests.cs` currently focuses on directory cleanup. Add coverage for file glob matches, file moves, file deletes, and mixed file/directory runs.
 
-- [ ] **#15 — Handle orphaned temp directories on failure**
-  If the move stage succeeds but delete fails, the temp directory retains file copies with no cleanup or user notification.
+- [ ] **#14 - Add cancellation-path tests**
+  `src/DotnetCleanup/CleanupService.cs:44-46,88-114` threads a `CancellationToken` through list, move, and delete, but there are no tests for cancellation before or during each stage.
 
-## Missing Test Cases
+- [ ] **#15 - Add focused helper tests**
+  `PathInfo`, `PathUtility`, `CleanupStep`, and `SimpleTypeResolver` have no direct tests. Add validation, equality, normalization, and resolution coverage.
 
-- [ ] **#16 — Add unit tests for `FileSystemService` in isolation**
-  All unit tests go through `CleanupService`. Add direct tests for:
-  - `ValidateSettings()` (empty includes, missing root path, missing temp path)
-  - `GetPaths()` (recursive traversal, file vs directory matching)
-  - `MovePath()` (relative path resolution, target path construction)
-  - `DeletePath()` (path selection logic — `MovePath` vs `Value`)
+- [ ] **#16 - Add user-flow and output regression tests**
+  Add tests for confirmation rejection, empty result sets, corrected singular/plural messaging, corrected summary behavior for `--noop` / `--no-delete`, and delete-failure output that surfaces staged temp paths.
 
-- [ ] **#17 — Add tests for file-based operations (not just directories)**
-  All unit tests use directories only. Add tests for:
-  - File glob matching (e.g., `**/*.log`)
-  - File move operations (`MoveFile` path)
-  - File delete operations (`DeleteFile` path)
-  - Mixed file and directory cleanup
+## Notes
 
-- [ ] **#18 — Add cancellation token tests**
-  `CancellationToken` is threaded through all stages but never tested. Add tests for:
-  - Cancellation during the List stage
-  - Cancellation during the Move stage (partial completion)
-  - Cancellation during the Delete stage (partial completion)
-
-- [ ] **#19 — Add unit tests for `PathInfo`**
-  No tests exist for:
-  - Constructor validation (null/whitespace path, normalization)
-  - `SetMovePath` validation
-  - Multiple failure state transitions
-  - `Parent` property computation
-  - `InitialValue` vs `Value` vs `Raw` semantics
-
-- [ ] **#20 — Add unit tests for `PathUtility`**
-  Zero tests for:
-  - `GetNormalizedPath` (forward slashes, trailing separators, null, whitespace)
-  - `GetParentPath` (root paths, single-segment paths, null)
-  - `GetRelativePath` (cross-platform behavior)
-
-- [ ] **#21 — Add unit tests for `CleanupStep`**
-  Missing coverage for:
-  - Thread safety (concurrent `AddSuccess`/`AddFailed` calls)
-  - `PathInfoComparer` behavior (duplicate detection, case sensitivity)
-  - Adding the same path to both success and failed collections
-
-- [ ] **#22 — Add test for user confirmation rejection**
-  When `onConfirmCallback` returns `false`, the service returns early with only List results. This flow is not unit-tested.
-
-- [ ] **#23 — Add test for empty directory tree**
-  What happens when the target path exists but contains no matching files/directories? Current tests always set up matching paths.
-
-- [ ] **#24 — Add integration test for error output**
-  Integration tests cover success paths and validation errors, but don't verify console output when move/delete operations fail (error messages, exception rendering).
-
-- [ ] **#25 — Add unit tests for `SimpleTypeResolver`**
-  The DI container's constructor injection, `IEnumerable<T>` resolution, and `Activator.CreateInstance` fallback are untested.
-
-## Priority Summary
-
-| Priority | Area | Items |
-|----------|------|-------|
-| **High** | Missing tests | #16–#22 — Core logic lacks isolated unit tests |
-| **High** | Design | #1 — Hard coupling prevents testability |
-| **Medium** | Robustness | #11, #12, #13 — Parallelism and race conditions |
-| **Medium** | Code quality | #5, #6, #10 — Cleanup and naming |
-| **Low** | Polish | #7, #8, #14, #15 — UX and edge cases |
+Current tests already cover many `CleanupService` stage transitions, skip modes, and failure propagation. The remaining gaps are narrower than the original plan suggested: helper-level coverage, file-based paths, cancellation, and CLI/output regressions.

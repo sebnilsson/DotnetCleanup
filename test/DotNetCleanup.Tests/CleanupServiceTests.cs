@@ -40,7 +40,7 @@ public sealed class CleanupServiceTests
         // Assert
         Assert.Equal(
             [projectAObjPath, projectBObjPath],
-            result.GetStep.Successes.Select(x => x.Value).Order(StringComparer.OrdinalIgnoreCase).ToArray());
+            result.ListStep.Successes.Select(x => x.Value).Order(StringComparer.OrdinalIgnoreCase).ToArray());
     }
 
     [Fact]
@@ -71,7 +71,7 @@ public sealed class CleanupServiceTests
         // Assert
         Assert.Equal(
             [projectBBinPath],
-            result.GetStep.Successes.Select(x => x.Value).Order(StringComparer.OrdinalIgnoreCase).ToArray());
+            result.ListStep.Successes.Select(x => x.Value).Order(StringComparer.OrdinalIgnoreCase).ToArray());
     }
 
     [Fact]
@@ -102,7 +102,7 @@ public sealed class CleanupServiceTests
         // Assert
         Assert.Equal(
             [projectBBinPath],
-            result.GetStep.Successes.Select(x => x.Value).Order(StringComparer.OrdinalIgnoreCase).ToArray());
+            result.ListStep.Successes.Select(x => x.Value).Order(StringComparer.OrdinalIgnoreCase).ToArray());
     }
 
     [Fact]
@@ -118,16 +118,16 @@ public sealed class CleanupServiceTests
 
         var service = new CleanupService(fileSystem);
         var settings = CreateSettings(fileSystem);
-        var tempRunPath = Path.Combine(TempPath, $"~dotnetcleanup-{settings.StartedAt:yyyyMMdd-HHmmss}");
-        var expectedMovedPath = Path.Combine(tempRunPath, @"src\bin");
 
         // Act
         var result = service.Cleanup(() => true, settings, CancellationToken.None);
+        var tempRunPath = GetTempRunPath(fileSystem, settings);
+        var expectedMovedPath = Path.Combine(tempRunPath, @"src\bin");
 
         // Assert
-        var listPath = Assert.Single(result.GetStep.Successes);
-        var movePath = Assert.Single(result.MoveStep!.Successes);
-        var deletePath = Assert.Single(result.DeleteStep!.Successes);
+        var listPath = Assert.Single(result.ListStep.Successes);
+        var movePath = Assert.Single(result.MoveStep.Successes);
+        var deletePath = Assert.Single(result.DeleteStep.Successes);
 
         Assert.Same(listPath, movePath);
         Assert.Same(listPath, deletePath);
@@ -152,14 +152,14 @@ public sealed class CleanupServiceTests
         var result = service.Cleanup(() => true, settings, CancellationToken.None);
 
         // Assert
-        var listPath = Assert.Single(result.GetStep.Successes);
-        var failedMovePath = Assert.Single(result.MoveStep!.Failed);
+        var listPath = Assert.Single(result.ListStep.Successes);
+        var failedMovePath = Assert.Single(result.MoveStep.Failed);
 
         Assert.Same(listPath, failedMovePath);
         Assert.Equal(PathFailureStage.Move, failedMovePath.FailedOn);
         Assert.IsType<IOException>(failedMovePath.Exception);
-        Assert.Empty(result.DeleteStep!.Successes);
-        Assert.Empty(result.DeleteStep!.Failed);
+        Assert.Empty(result.DeleteStep.Successes);
+        Assert.Empty(result.DeleteStep.Failed);
     }
 
     [Fact]
@@ -170,23 +170,21 @@ public sealed class CleanupServiceTests
         var fileSystem = CreateFileSystem(directories: [binPath]);
 
         var service = new CleanupService(fileSystem);
-        var settings = CreateSettings(fileSystem);
-        var tempRunPath = Path.Combine(TempPath, $"~dotnetcleanup-{settings.StartedAt:yyyyMMdd-HHmmss}");
-        var movedBinPath = Path.Combine(tempRunPath, @"bin");
+        service.OnMovePath += path => fileSystem.DeleteDirectoryExceptions.TryAdd(path.MovePath, new IOException("delete failed"));
 
-        fileSystem.DeleteDirectoryExceptions.Add(movedBinPath, new IOException("delete failed"));
+        var settings = CreateSettings(fileSystem);
 
         // Act
         var result = service.Cleanup(() => true, settings, CancellationToken.None);
 
         // Assert
-        var movedPath = Assert.Single(result.MoveStep!.Successes);
-        var failedDeletePath = Assert.Single(result.DeleteStep!.Failed);
+        var movedPath = Assert.Single(result.MoveStep.Successes);
+        var failedDeletePath = Assert.Single(result.DeleteStep.Failed);
 
         Assert.Same(movedPath, failedDeletePath);
         Assert.Equal(PathFailureStage.Delete, failedDeletePath.FailedOn);
         Assert.IsType<IOException>(failedDeletePath.Exception);
-        Assert.Empty(result.DeleteStep!.Successes);
+        Assert.Empty(result.DeleteStep.Successes);
     }
 
     [Fact]
@@ -209,9 +207,9 @@ public sealed class CleanupServiceTests
         var result = service.Cleanup(() => true, settings, CancellationToken.None);
 
         // Assert
-        var listPath = Assert.Single(result.GetStep.Successes);
-        var movePath = Assert.Single(result.MoveStep!.Successes);
-        var deletePath = Assert.Single(result.DeleteStep!.Successes);
+        var listPath = Assert.Single(result.ListStep.Successes);
+        var movePath = Assert.Single(result.MoveStep.Successes);
+        var deletePath = Assert.Single(result.DeleteStep.Successes);
 
         Assert.Same(listPath, movePath);
         Assert.Same(listPath, deletePath);
@@ -241,7 +239,7 @@ public sealed class CleanupServiceTests
         var result = service.Cleanup(() => true, settings, CancellationToken.None);
 
         // Assert
-        var listPath = Assert.Single(result.GetStep.Successes);
+        var listPath = Assert.Single(result.ListStep.Successes);
 
         Assert.Equal(binPath, listPath.Value);
         Assert.Empty(result.MoveStep.Successes);
@@ -268,11 +266,11 @@ public sealed class CleanupServiceTests
         service.OnDeletePath += (_) => deletePathEventCount++;
 
         var settings = CreateSettings(fileSystem, skipDelete: true);
-        var tempRunPath = Path.Combine(TempPath, $"~dotnetcleanup-{settings.StartedAt:yyyyMMdd-HHmmss}");
-        var movedBinPath = Path.Combine(tempRunPath, @"bin");
 
         // Act
         var result = service.Cleanup(() => true, settings, CancellationToken.None);
+        var tempRunPath = GetTempRunPath(fileSystem, settings);
+        var movedBinPath = Path.Combine(tempRunPath, @"bin");
 
         // Assert
         var movedPath = Assert.Single(result.MoveStep.Successes);
@@ -301,14 +299,14 @@ public sealed class CleanupServiceTests
         var result = service.Cleanup(() => true, settings, CancellationToken.None);
 
         // Assert
-        var failedListPath = Assert.Single(result.GetStep.Failed);
+        var failedListPath = Assert.Single(result.ListStep.Failed);
 
         Assert.Equal(PathFailureStage.List, failedListPath.FailedOn);
         Assert.IsType<IOException>(failedListPath.Exception);
-        Assert.Empty(result.MoveStep!.Successes);
-        Assert.Empty(result.MoveStep!.Failed);
-        Assert.Empty(result.DeleteStep!.Successes);
-        Assert.Empty(result.DeleteStep!.Failed);
+        Assert.Empty(result.MoveStep.Successes);
+        Assert.Empty(result.MoveStep.Failed);
+        Assert.Empty(result.DeleteStep.Successes);
+        Assert.Empty(result.DeleteStep.Failed);
     }
 
     [Fact]
@@ -336,39 +334,114 @@ public sealed class CleanupServiceTests
         fileSystem.MoveDirectoryExceptions.Add(projectBBinPath, new IOException("move failed for path"));
 
         var service = new CleanupService(fileSystem);
-        var settings = CreateSettings(fileSystem);
-        var tempRunPath = Path.Combine(TempPath, $"~dotnetcleanup-{settings.StartedAt:yyyyMMdd-HHmmss}");
-        var movedProjectAPath = Path.Combine(tempRunPath, @"projectA\bin");
-        var movedProjectCPath = Path.Combine(tempRunPath, @"projectC\bin");
+        service.OnMovePath += path =>
+        {
+            if (string.Equals(path.Value, projectCBinPath, StringComparison.OrdinalIgnoreCase))
+            {
+                fileSystem.DeleteDirectoryExceptions.TryAdd(path.MovePath, new IOException("delete failed for path"));
+            }
+        };
 
-        fileSystem.DeleteDirectoryExceptions.Add(movedProjectCPath, new IOException("delete failed for path"));
+        var settings = CreateSettings(fileSystem);
 
         // Act
         var result = service.Cleanup(() => true, settings, CancellationToken.None);
 
         // Assert
-        var listFailedPath = Assert.Single(result.GetStep.Failed);
+        var listFailedPath = Assert.Single(result.ListStep.Failed);
         Assert.Equal(brokenProjectPath, listFailedPath.Value);
         Assert.Equal(PathFailureStage.List, listFailedPath.FailedOn);
 
-        var moveFailedPath = Assert.Single(result.MoveStep!.Failed);
+        var moveFailedPath = Assert.Single(result.MoveStep.Failed);
         Assert.Equal(projectBBinPath, moveFailedPath.Value);
         Assert.Equal(PathFailureStage.Move, moveFailedPath.FailedOn);
         Assert.True(string.IsNullOrWhiteSpace(moveFailedPath.MovePath));
 
         var moveSucceededProjectA = Assert.Single(result.MoveStep.Successes, x => x.Value == projectABinPath);
-        Assert.Equal(movedProjectAPath, moveSucceededProjectA.MovePath);
+        Assert.StartsWith($@"{TempPath}\~dotnetcleanup-", moveSucceededProjectA.MovePath, StringComparison.OrdinalIgnoreCase);
+        Assert.EndsWith(@"projectA\bin", moveSucceededProjectA.MovePath, StringComparison.OrdinalIgnoreCase);
 
-        var deleteFailedPath = Assert.Single(result.DeleteStep!.Failed);
+        var deleteFailedPath = Assert.Single(result.DeleteStep.Failed);
         Assert.Equal(projectCBinPath, deleteFailedPath.Value);
         Assert.Equal(PathFailureStage.Delete, deleteFailedPath.FailedOn);
-        Assert.Equal(movedProjectCPath, deleteFailedPath.MovePath);
+        Assert.StartsWith($@"{TempPath}\~dotnetcleanup-", deleteFailedPath.MovePath, StringComparison.OrdinalIgnoreCase);
+        Assert.EndsWith(@"projectC\bin", deleteFailedPath.MovePath, StringComparison.OrdinalIgnoreCase);
 
         var deleteSucceededPath = Assert.Single(result.DeleteStep.Successes);
         Assert.Equal(projectABinPath, deleteSucceededPath.Value);
 
         Assert.DoesNotContain(result.DeleteStep.Successes, x => x.Value == projectBBinPath);
         Assert.DoesNotContain(result.DeleteStep.Failed, x => x.Value == projectBBinPath);
+    }
+
+    [Fact]
+    public void Cleanup_FileMatches_MovesAndDeletesFiles()
+    {
+        // Arrange
+        var logFilePath = $@"{RootPath}\projectA\artifacts\build.log";
+        var fileSystem = CreateFileSystem(
+            directories:
+            [
+                $@"{RootPath}\projectA",
+                $@"{RootPath}\projectA\artifacts"
+            ],
+            files:
+            [
+                logFilePath
+            ]);
+
+        var service = new CleanupService(fileSystem);
+        var settings = CreateSettings(fileSystem, include: ["**/*.log"]);
+
+        // Act
+        var result = service.Cleanup(() => true, settings, CancellationToken.None);
+        var tempRunPath = GetTempRunPath(fileSystem, settings);
+        var movedLogFilePath = Path.Combine(tempRunPath, @"projectA\artifacts\build.log");
+
+        // Assert
+        var listedPath = Assert.Single(result.ListStep.Successes);
+        var movedPath = Assert.Single(result.MoveStep.Successes);
+        var deletedPath = Assert.Single(result.DeleteStep.Successes);
+
+        Assert.True(listedPath.IsFile);
+        Assert.Same(listedPath, movedPath);
+        Assert.Same(listedPath, deletedPath);
+        Assert.Equal(movedLogFilePath, listedPath.MovePath);
+        Assert.DoesNotContain(logFilePath, fileSystem.Files, StringComparer.OrdinalIgnoreCase);
+        Assert.DoesNotContain(movedLogFilePath, fileSystem.Files, StringComparer.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Cleanup_MixedFileAndDirectoryMatches_TracksBothPathKinds()
+    {
+        // Arrange
+        var binPath = $@"{RootPath}\projectA\bin";
+        var logFilePath = $@"{RootPath}\projectA\artifacts\build.log";
+        var fileSystem = CreateFileSystem(
+            directories:
+            [
+                $@"{RootPath}\projectA",
+                binPath,
+                $@"{RootPath}\projectA\artifacts"
+            ],
+            files:
+            [
+                logFilePath
+            ]);
+
+        var service = new CleanupService(fileSystem);
+        var settings = CreateSettings(fileSystem, skipDelete: true, include: ["**/bin", "**/*.log"]);
+
+        // Act
+        var result = service.Cleanup(() => true, settings, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(2, result.ListStep.Successes.Count);
+        Assert.Equal(2, result.MoveStep.Successes.Count);
+        Assert.Contains(result.ListStep.Successes, path => !path.IsFile && path.Value == binPath);
+        Assert.Contains(result.ListStep.Successes, path => path.IsFile && path.Value == logFilePath);
+        Assert.Empty(result.DeleteStep.Successes);
+        Assert.Empty(result.DeleteStep.Failed);
     }
 
     private static InMemoryFileSystem CreateFileSystem(string[]? directories = null, string[]? files = null)
@@ -404,5 +477,15 @@ public sealed class CleanupServiceTests
             SkipMove = skipMove,
             SkipDelete = skipDelete
         };
+    }
+
+    private static string GetTempRunPath(InMemoryFileSystem fileSystem, CleanupSettings settings)
+    {
+        var expectedPrefix = $@"{TempPath}\~dotnetcleanup-{settings.StartedAt:yyyyMMdd-HHmmss}-";
+
+        return Assert.Single(
+            fileSystem.Directories,
+            path => path.StartsWith(expectedPrefix, StringComparison.OrdinalIgnoreCase) &&
+                Path.GetRelativePath(TempPath, path).IndexOfAny(['\\', '/']) < 0);
     }
 }

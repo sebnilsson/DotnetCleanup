@@ -4,17 +4,17 @@
     <IsPackable>true</IsPackable>
     <OutputType>Exe</OutputType>
 
-    <Title>Dotnet Cleanup</Title>
-    <AssemblyName>cleanup</AssemblyName>
-    <PackageId>cleanup</PackageId>
+    <Title>dotnet-cleanup</Title>
+    <AssemblyName>DotnetCleanup</AssemblyName>
+    <PackageId>dotnet-cleanup</PackageId>
     <PackageVersion>$(Version)</PackageVersion>
     <Version>1.0.0</Version>
 
-    <ToolCommandName>cleanup</ToolCommandName>
+    <ToolCommandName>dotnet-cleanup</ToolCommandName>
     <PackAsTool>True</PackAsTool>
     <PackageOutputPath>./nupkg</PackageOutputPath>
 
-    <PackageProjectUrl>https://github.com/sebnilsson/DotnetGuid</PackageProjectUrl>
+    <PackageProjectUrl>https://github.com/sebnilsson/DotnetCleanup</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
 
     <RepositoryUrl>$(PackageProjectUrl).git</RepositoryUrl>
@@ -29,7 +29,6 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.FileSystemGlobbing" />
-    <PackageReference Include="Microsoft.Extensions.Logging" />
     <PackageReference Include="Spectre.Console.Cli" />
   </ItemGroup>
 

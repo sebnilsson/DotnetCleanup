@@ -1,4 +1,4 @@
-# dotnet-cleanup
+﻿# dotnet-cleanup
 
 .NET tool for cleaning generated folders from a directory tree.
 
@@ -46,25 +46,25 @@ OPTIONS:
 
 ```bash
 # Clean current directory tree (confirmation prompt enabled)
-cleanup
+dotnet-cleanup
 
 # Clean a specific folder tree
-cleanup C:\src\project
+dotnet-cleanup C:\src\project
 
 # Custom include/exclude patterns
-cleanup -p "**/bin" -p "**/obj" -p "**/node_modules" -x "**/samples/**"
+dotnet-cleanup -p "**/bin" -p "**/obj" -p "**/node_modules" -x "**/samples/**"
 
 # Skip confirmation
-cleanup -y
+dotnet-cleanup -y
 
 # List only (do not move or delete)
-cleanup --noop
+dotnet-cleanup --noop
 
 # Move to temp folder, but do not delete
-cleanup --no-delete -y
+dotnet-cleanup --no-delete -y
 
 # Delete in place without temp staging
-cleanup --no-move -y
+dotnet-cleanup --no-move -y
 ```
 
 ## Behavior

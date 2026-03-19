@@ -58,10 +58,11 @@ public sealed class CleanupService(IFileSystem fileSystem)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            AddPath(cleanupResult.GetStep, path, OnListPath);
+            AddPath(cleanupResult.ListStep, path, OnListPath);
         }
 
-        OnListPathsStepDone?.Invoke(cleanupResult.GetStep);
+        cleanupResult.MarkLastExecutedStage(CleanupStage.List);
+        OnListPathsStepDone?.Invoke(cleanupResult.ListStep);
     }
 
     private void MovePaths(CleanupResult cleanupResult, string tempPath, CleanupSettings settings, CancellationToken cancellationToken)
@@ -76,7 +77,7 @@ public sealed class CleanupService(IFileSystem fileSystem)
 
         if (settings.SkipMove)
         {
-            foreach (var path in cleanupResult.GetStep.Successes)
+            foreach (var path in cleanupResult.ListStep.Successes)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
@@ -90,13 +91,14 @@ public sealed class CleanupService(IFileSystem fileSystem)
                 CancellationToken = cancellationToken
             };
 
-            Parallel.ForEach(cleanupResult.GetStep.Successes, parallelOptions, path =>
+            Parallel.ForEach(cleanupResult.ListStep.Successes, parallelOptions, path =>
             {
                 var movePath = _fileSystemService.MovePath(tempPath, path, settings);
                 AddPath(cleanupResult.MoveStep, movePath, OnMovePath);
             });
         }
 
+        cleanupResult.MarkLastExecutedStage(CleanupStage.Move);
         OnMovePathsStepDone?.Invoke(cleanupResult.MoveStep);
     }
 
@@ -117,6 +119,8 @@ public sealed class CleanupService(IFileSystem fileSystem)
 
                 AddPath(cleanupResult.DeleteStep, deletePath, OnDeletePath);
             });
+
+            cleanupResult.MarkLastExecutedStage(CleanupStage.Delete);
         }
 
         OnDeletePathsStepDone?.Invoke(cleanupResult.DeleteStep);

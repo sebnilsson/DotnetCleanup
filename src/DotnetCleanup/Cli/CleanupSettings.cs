@@ -30,7 +30,7 @@ public sealed partial class CleanupSettings : CommandSettings
     [Description("Glob paths to exclude from cleanup.")]
     public string[] Exclude { get; init; } = [];
 
-    [CommandOption("-y|--yes|--confirm")]
+    [CommandOption("-y|--yes")]
     [Description("Run cleanup skipping confirm prompt.")]
     public bool SkipConfirm { get; init; }
 

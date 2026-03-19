@@ -22,7 +22,7 @@ public sealed class CleanupCommandTests
 
         // Act
         var result = appTester.Run([RootPath, "--temp-path", TempPath,
-            "--confirm", "--what-if", "--no-move"]);
+            "--yes", "--what-if", "--no-move"]);
         var settings = result.Settings as CleanupSettings;
 
         // Assert
@@ -202,7 +202,7 @@ public sealed class CleanupCommandTests
     }
 
     [Fact]
-    public void Run_WithConfirmOption_SkipsPrompting()
+    public void Run_WithYesOption_SkipsPrompting()
     {
         // Arrange
         var testConsole = new TestConsole();
@@ -224,7 +224,7 @@ public sealed class CleanupCommandTests
                 RootPath,
                 "--temp-path", TempPath,
                 "-p", "**/bin",
-                "--confirm",
+                "--yes",
                 "--noop"
             ]);
 
@@ -232,6 +232,39 @@ public sealed class CleanupCommandTests
         Assert.Equal(0, result.ExitCode);
         Assert.DoesNotContain("Proceed with the cleanup?", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("Cleanup canceled by user", result.Output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Run_WhenConfirmationRejected_ShowsCanceledAndListSummary()
+    {
+        // Arrange
+        var testConsole = new TestConsole();
+        testConsole.Input.PushTextWithEnter("n");
+
+        var fileSystem = new InMemoryFileSystem(
+            directories:
+            [
+                RootPath,
+                TempPath,
+                $@"{RootPath}\projectA",
+                $@"{RootPath}\projectA\bin"
+            ]);
+        var appTester = CreateAppTester(new AppTesterConfig(Console: testConsole, FileSystem: fileSystem));
+
+        // Act
+        var result = appTester.Run(
+            [
+                RootPath,
+                "--temp-path", TempPath,
+                "-p", "**/bin"
+            ]);
+
+        // Assert
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("Proceed with the cleanup?", result.Output, StringComparison.Ordinal);
+        Assert.Contains("Cleanup canceled by user", result.Output, StringComparison.Ordinal);
+        Assert.Contains("1 file found", result.Output, StringComparison.Ordinal);
+        Assert.Contains("1 succeeded.", result.Output, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -275,11 +308,11 @@ public sealed class CleanupCommandTests
 
         if (expectFilesFoundMessage)
         {
-            Assert.Contains("1 files found", result.Output, StringComparison.Ordinal);
+            Assert.Contains("1 file found", result.Output, StringComparison.Ordinal);
         }
         else
         {
-            Assert.DoesNotContain("files found", result.Output, StringComparison.Ordinal);
+            Assert.DoesNotContain("file found", result.Output, StringComparison.Ordinal);
         }
 
         if (expectSkipMessages)
@@ -313,17 +346,77 @@ public sealed class CleanupCommandTests
 
         if (expectSummaryMessage)
         {
-            Assert.Contains("0 succeeded.", result.Output, StringComparison.Ordinal);
+            Assert.Contains("1 succeeded.", result.Output, StringComparison.Ordinal);
         }
         else
         {
-            Assert.DoesNotContain("0 succeeded.", result.Output, StringComparison.Ordinal);
+            Assert.DoesNotContain("1 succeeded.", result.Output, StringComparison.Ordinal);
         }
+    }
+
+    [Fact]
+    public void Run_WithNoDelete_SummarizesMoveStep()
+    {
+        // Arrange
+        var fileSystem = new InMemoryFileSystem(
+            directories:
+            [
+                RootPath,
+                TempPath,
+                $@"{RootPath}\projectA",
+                $@"{RootPath}\projectA\bin"
+            ]);
+        var appTester = CreateAppTester(new AppTesterConfig(FileSystem: fileSystem));
+
+        // Act
+        var result = appTester.Run(
+            [
+                RootPath,
+                "--temp-path", TempPath,
+                "-p", "**/bin",
+                "-y",
+                "--no-delete"
+            ]);
+
+        // Assert
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("1 succeeded.", result.Output, StringComparison.Ordinal);
+        Assert.DoesNotContain("0 succeeded.", result.Output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Run_WhenDeleteFails_ShowsTheStagedPath()
+    {
+        // Arrange
+        var innerFileSystem = new InMemoryFileSystem(
+            directories:
+            [
+                RootPath,
+                TempPath,
+                $@"{RootPath}\projectA",
+                $@"{RootPath}\projectA\bin"
+            ]);
+        var fileSystem = new DeleteFailsForMovedDirectoryFileSystem(innerFileSystem);
+        var appTester = CreateAppTester(new AppTesterConfig(FileSystem: fileSystem));
+
+        // Act
+        var result = appTester.Run(
+            [
+                RootPath,
+                "--temp-path", TempPath,
+                "-p", "**/bin",
+                "-y"
+            ]);
+        // Assert
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("Error deleting:", result.Output, StringComparison.Ordinal);
+        Assert.Contains($@"{TempPath}\~dotnetcleanup-", result.Output, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain($@"Error deleting: {RootPath}\projectA\bin", result.Output, StringComparison.OrdinalIgnoreCase);
     }
 
     private record AppTesterConfig(
         TestConsole? Console = null,
-        InMemoryFileSystem? FileSystem = null,
+        IFileSystem? FileSystem = null,
         string[]? Directories = null,
         string[]? Files = null);
 
@@ -349,5 +442,37 @@ public sealed class CleanupCommandTests
         app.Configure(CommandAppCleanupCommand.Configurator);
 
         return app;
+    }
+
+    private sealed class DeleteFailsForMovedDirectoryFileSystem(InMemoryFileSystem innerFileSystem) : IFileSystem
+    {
+        private readonly InMemoryFileSystem _innerFileSystem = innerFileSystem ?? throw new ArgumentNullException(nameof(innerFileSystem));
+
+        public void CreateDirectory(string path) => _innerFileSystem.CreateDirectory(path);
+
+        public void DeleteDirectory(string path) => _innerFileSystem.DeleteDirectory(path);
+
+        public void DeleteFile(string path) => _innerFileSystem.DeleteFile(path);
+
+        public bool DirectoryExists(string path) => _innerFileSystem.DirectoryExists(path);
+
+        public IEnumerable<string> EnumerateDirectories(string path) => _innerFileSystem.EnumerateDirectories(path);
+
+        public IEnumerable<string> EnumerateFiles(string path) => _innerFileSystem.EnumerateFiles(path);
+
+        public string GetCurrentDirectory() => _innerFileSystem.GetCurrentDirectory();
+
+        public string GetTempPath() => _innerFileSystem.GetTempPath();
+
+        public void MoveDirectory(string sourcePath, string destinationPath)
+        {
+            _innerFileSystem.MoveDirectory(sourcePath, destinationPath);
+            _innerFileSystem.DeleteDirectoryExceptions.TryAdd(destinationPath, new IOException("delete failed"));
+        }
+
+        public void MoveFile(string sourcePath, string destinationPath)
+        {
+            _innerFileSystem.MoveFile(sourcePath, destinationPath);
+        }
     }
 }

@@ -5,7 +5,6 @@ namespace DotnetCleanup.IO;
 
 public sealed class FileSystemService(IFileSystem fileSystem)
 {
-    private static readonly Lock s_createDirectoryLock = new();
     private readonly IFileSystem _fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
 
     public IEnumerable<PathInfo> GetPaths(CleanupSettings settings, CancellationToken cancellationToken)
@@ -90,12 +89,11 @@ public sealed class FileSystemService(IFileSystem fileSystem)
     {
         ArgumentNullException.ThrowIfNull(settings);
 
-        var path = Path.Combine(settings.TempPath, $"~dotnetcleanup-{settings.StartedAt:yyyyMMdd-HHmmss}");
+        var path = Path.Combine(
+            settings.TempPath,
+            $"~dotnetcleanup-{settings.StartedAt:yyyyMMdd-HHmmss}-{Guid.CreateVersion7():N}");
 
-        if (!_fileSystem.DirectoryExists(path))
-        {
-            _fileSystem.CreateDirectory(path);
-        }
+        _fileSystem.CreateDirectory(path);
 
         return path;
     }
@@ -120,15 +118,9 @@ public sealed class FileSystemService(IFileSystem fileSystem)
 
     private void EnsureDirectory(string path)
     {
-        if (!_fileSystem.DirectoryExists(path))
+        if (!string.IsNullOrWhiteSpace(path))
         {
-            lock (s_createDirectoryLock)
-            {
-                if (!_fileSystem.DirectoryExists(path))
-                {
-                    _fileSystem.CreateDirectory(path);
-                }
-            }
+            _fileSystem.CreateDirectory(path);
         }
     }
 

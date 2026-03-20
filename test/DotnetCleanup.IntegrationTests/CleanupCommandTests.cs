@@ -1,7 +1,7 @@
 ﻿using DotnetCleanup.Cli;
 using DotnetCleanup.IO;
 using DotnetCleanup.Spectre;
-using DotNetCleanup.Testing.IO;
+using DotnetCleanup.Testing.IO;
 using Spectre.Console;
 using Spectre.Console.Cli.Testing;
 using Spectre.Console.Testing;
@@ -142,6 +142,34 @@ public sealed class CleanupCommandTests
     }
 
     [Fact]
+    public void Run_WithNoopAndAdditionalSkipFlags_StillBehavesAsNoop()
+    {
+        // Arrange
+        var binPath = $@"{RootPath}\projectA\bin";
+        var fileSystem = new InMemoryFileSystem(
+            directories:
+            [
+                RootPath,
+                TempPath,
+                $@"{RootPath}\projectA",
+                binPath
+            ]);
+        var appTester = CreateAppTester(new AppTesterConfig(FileSystem: fileSystem));
+
+        // Act
+        var result = appTester.Run([RootPath, "--temp-path", TempPath, "-y", "--noop", "--no-move", "--no-delete"]);
+        var settings = Assert.IsType<CleanupSettings>(result.Settings);
+
+        // Assert
+        Assert.True(settings.Noop);
+        Assert.True(settings.SkipMove);
+        Assert.True(settings.SkipDelete);
+        Assert.Contains("Skipping moving paths", result.Output, StringComparison.Ordinal);
+        Assert.Contains("Skipping deleting paths", result.Output, StringComparison.Ordinal);
+        Assert.Contains(binPath, fileSystem.Directories, StringComparer.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Run_UsingLongIncludeOptionMultipleTimes_SetsSettings()
     {
         // Arrange
@@ -263,7 +291,7 @@ public sealed class CleanupCommandTests
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("Proceed with the cleanup?", result.Output, StringComparison.Ordinal);
         Assert.Contains("Cleanup canceled by user", result.Output, StringComparison.Ordinal);
-        Assert.Contains("1 file found", result.Output, StringComparison.Ordinal);
+        Assert.Contains("1 path found", result.Output, StringComparison.Ordinal);
         Assert.Contains("1 succeeded.", result.Output, StringComparison.Ordinal);
     }
 
@@ -273,7 +301,7 @@ public sealed class CleanupCommandTests
     [InlineData("detailed", true, true, true, true, true)]
     public void Run_DifferentVerbosityLevels_OutputExpectedConsoleContent(
         string verbosity,
-        bool expectFilesFoundMessage,
+        bool expectPathsFoundMessage,
         bool expectSkipMessages,
         bool expectListStartMessage,
         bool expectPathOutput,
@@ -306,33 +334,33 @@ public sealed class CleanupCommandTests
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("Cleanup process completed.", result.Output, StringComparison.Ordinal);
 
-        if (expectFilesFoundMessage)
+        if (expectPathsFoundMessage)
         {
-            Assert.Contains("1 file found", result.Output, StringComparison.Ordinal);
+            Assert.Contains("1 path found", result.Output, StringComparison.Ordinal);
         }
         else
         {
-            Assert.DoesNotContain("file found", result.Output, StringComparison.Ordinal);
+            Assert.DoesNotContain("path found", result.Output, StringComparison.Ordinal);
         }
 
         if (expectSkipMessages)
         {
-            Assert.Contains("Skipping moving files", result.Output, StringComparison.Ordinal);
-            Assert.Contains("Skipping deleting files", result.Output, StringComparison.Ordinal);
+            Assert.Contains("Skipping moving paths", result.Output, StringComparison.Ordinal);
+            Assert.Contains("Skipping deleting paths", result.Output, StringComparison.Ordinal);
         }
         else
         {
-            Assert.DoesNotContain("Skipping moving files", result.Output, StringComparison.Ordinal);
-            Assert.DoesNotContain("Skipping deleting files", result.Output, StringComparison.Ordinal);
+            Assert.DoesNotContain("Skipping moving paths", result.Output, StringComparison.Ordinal);
+            Assert.DoesNotContain("Skipping deleting paths", result.Output, StringComparison.Ordinal);
         }
 
         if (expectListStartMessage)
         {
-            Assert.Contains("Listing files...", result.Output, StringComparison.Ordinal);
+            Assert.Contains("Listing paths...", result.Output, StringComparison.Ordinal);
         }
         else
         {
-            Assert.DoesNotContain("Listing files...", result.Output, StringComparison.Ordinal);
+            Assert.DoesNotContain("Listing paths...", result.Output, StringComparison.Ordinal);
         }
 
         if (expectPathOutput)
@@ -409,9 +437,109 @@ public sealed class CleanupCommandTests
             ]);
         // Assert
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("Error deleting:", result.Output, StringComparison.Ordinal);
+        Assert.Contains("Error deleting path:", result.Output, StringComparison.Ordinal);
         Assert.Contains($@"{TempPath}\~dotnetcleanup-", result.Output, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain($@"Error deleting: {RootPath}\projectA\bin", result.Output, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain($@"Error deleting path: {RootPath}\projectA\bin", result.Output, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Run_WhenListingFails_DoesNotReportNoMatchingPathsFound()
+    {
+        // Arrange
+        var fileSystem = new InMemoryFileSystem(directories: [RootPath, TempPath]);
+        fileSystem.ListFileExceptions.Add(RootPath, new IOException("list failed"));
+        var appTester = CreateAppTester(new AppTesterConfig(FileSystem: fileSystem));
+
+        // Act
+        var result = appTester.Run([RootPath, "--temp-path", TempPath, "-y", "--noop"]);
+
+        // Assert
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("Listing completed with failures", result.Output, StringComparison.Ordinal);
+        Assert.DoesNotContain("No matching paths found", result.Output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Run_WhenListedPathDisappearsBeforeMove_ShowsMoveError()
+    {
+        // Arrange
+        var innerFileSystem = new InMemoryFileSystem(
+            directories:
+            [
+                RootPath,
+                TempPath,
+                $@"{RootPath}\projectA",
+                $@"{RootPath}\projectA\bin"
+            ]);
+        var fileSystem = new MoveSourceDisappearsFileSystem(innerFileSystem);
+        var appTester = CreateAppTester(new AppTesterConfig(FileSystem: fileSystem));
+
+        // Act
+        var result = appTester.Run([RootPath, "--temp-path", TempPath, "-p", "**/bin", "-y"]);
+
+        // Assert
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains($@"Error moving path: {RootPath}\projectA\bin", result.Output, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Run_WhenStagedPathDisappearsBeforeDelete_ShowsDeleteError()
+    {
+        // Arrange
+        var innerFileSystem = new InMemoryFileSystem(
+            directories:
+            [
+                RootPath,
+                TempPath,
+                $@"{RootPath}\projectA",
+                $@"{RootPath}\projectA\bin"
+            ]);
+        var fileSystem = new DeleteTargetDisappearsFileSystem(innerFileSystem);
+        var appTester = CreateAppTester(new AppTesterConfig(FileSystem: fileSystem));
+
+        // Act
+        var result = appTester.Run([RootPath, "--temp-path", TempPath, "-p", "**/bin", "-y"]);
+
+        // Assert
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("Error deleting path:", result.Output, StringComparison.Ordinal);
+        Assert.Contains($@"{TempPath}\~dotnetcleanup-", result.Output, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("--noop", "--no-move")]
+    [InlineData("--noop", "--no-delete")]
+    [InlineData("--noop", "--no-move", "--no-delete")]
+    public void Run_NoopWithRedundantSkipFlags_BehavesLikeNoopAlone(params string[] extraFlags)
+    {
+        // Arrange (#18 - normalize ineffective option combinations)
+        var binPath = $@"{RootPath}\projectA\bin";
+        var fileSystem = new InMemoryFileSystem(
+            directories:
+            [
+                RootPath,
+                TempPath,
+                $@"{RootPath}\projectA",
+                binPath
+            ]);
+        var appTester = CreateAppTester(new AppTesterConfig(FileSystem: fileSystem));
+
+        var args = new List<string>
+        {
+            RootPath,
+            "--temp-path", TempPath,
+            "-p", "**/bin",
+            "-y"
+        };
+        args.AddRange(extraFlags);
+
+        // Act
+        var result = appTester.Run([.. args]);
+
+        // Assert
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("1 path found", result.Output, StringComparison.Ordinal);
+        Assert.Contains(binPath, fileSystem.Directories, StringComparer.OrdinalIgnoreCase);
     }
 
     private record AppTesterConfig(
@@ -473,6 +601,72 @@ public sealed class CleanupCommandTests
         public void MoveFile(string sourcePath, string destinationPath)
         {
             _innerFileSystem.MoveFile(sourcePath, destinationPath);
+        }
+    }
+
+    private sealed class MoveSourceDisappearsFileSystem(InMemoryFileSystem innerFileSystem) : IFileSystem
+    {
+        private readonly InMemoryFileSystem _innerFileSystem = innerFileSystem ?? throw new ArgumentNullException(nameof(innerFileSystem));
+
+        public void CreateDirectory(string path) => _innerFileSystem.CreateDirectory(path);
+
+        public void DeleteDirectory(string path) => _innerFileSystem.DeleteDirectory(path);
+
+        public void DeleteFile(string path) => _innerFileSystem.DeleteFile(path);
+
+        public bool DirectoryExists(string path) => _innerFileSystem.DirectoryExists(path);
+
+        public IEnumerable<string> EnumerateDirectories(string path) => _innerFileSystem.EnumerateDirectories(path);
+
+        public IEnumerable<string> EnumerateFiles(string path) => _innerFileSystem.EnumerateFiles(path);
+
+        public string GetCurrentDirectory() => _innerFileSystem.GetCurrentDirectory();
+
+        public string GetTempPath() => _innerFileSystem.GetTempPath();
+
+        public void MoveDirectory(string sourcePath, string destinationPath)
+        {
+            _innerFileSystem.DeleteDirectory(sourcePath);
+            _innerFileSystem.MoveDirectory(sourcePath, destinationPath);
+        }
+
+        public void MoveFile(string sourcePath, string destinationPath)
+        {
+            _innerFileSystem.DeleteFile(sourcePath);
+            _innerFileSystem.MoveFile(sourcePath, destinationPath);
+        }
+    }
+
+    private sealed class DeleteTargetDisappearsFileSystem(InMemoryFileSystem innerFileSystem) : IFileSystem
+    {
+        private readonly InMemoryFileSystem _innerFileSystem = innerFileSystem ?? throw new ArgumentNullException(nameof(innerFileSystem));
+
+        public void CreateDirectory(string path) => _innerFileSystem.CreateDirectory(path);
+
+        public void DeleteDirectory(string path) => _innerFileSystem.DeleteDirectory(path);
+
+        public void DeleteFile(string path) => _innerFileSystem.DeleteFile(path);
+
+        public bool DirectoryExists(string path) => _innerFileSystem.DirectoryExists(path);
+
+        public IEnumerable<string> EnumerateDirectories(string path) => _innerFileSystem.EnumerateDirectories(path);
+
+        public IEnumerable<string> EnumerateFiles(string path) => _innerFileSystem.EnumerateFiles(path);
+
+        public string GetCurrentDirectory() => _innerFileSystem.GetCurrentDirectory();
+
+        public string GetTempPath() => _innerFileSystem.GetTempPath();
+
+        public void MoveDirectory(string sourcePath, string destinationPath)
+        {
+            _innerFileSystem.MoveDirectory(sourcePath, destinationPath);
+            _innerFileSystem.DeleteDirectory(destinationPath);
+        }
+
+        public void MoveFile(string sourcePath, string destinationPath)
+        {
+            _innerFileSystem.MoveFile(sourcePath, destinationPath);
+            _innerFileSystem.DeleteFile(destinationPath);
         }
     }
 }

@@ -1,6 +1,6 @@
 ﻿using DotnetCleanup.Cli;
 using DotnetCleanup.IO;
-using DotNetCleanup.Testing.IO;
+using DotnetCleanup.Testing.IO;
 using Xunit;
 
 namespace DotnetCleanup.Tests;
@@ -444,6 +444,206 @@ public sealed class CleanupServiceTests
         Assert.Empty(result.DeleteStep.Failed);
     }
 
+    [Fact]
+    public void Cleanup_PathDisappearsAfterListing_MarksMoveFailureInsteadOfThrowing()
+    {
+        // Arrange
+        var binPath = $@"{RootPath}\projectA\bin";
+        var fileSystem = CreateFileSystem(
+            directories:
+            [
+                $@"{RootPath}\projectA",
+                binPath
+            ]);
+        var service = new CleanupService(fileSystem);
+        var settings = CreateSettings(fileSystem);
+
+        // Act
+        var result = service.Cleanup(
+            () =>
+            {
+                fileSystem.DeleteDirectory(binPath);
+                return true;
+            },
+            settings,
+            CancellationToken.None);
+
+        // Assert
+        var listedPath = Assert.Single(result.ListStep.Successes);
+        var failedMovePath = Assert.Single(result.MoveStep.Failed);
+
+        Assert.Same(listedPath, failedMovePath);
+        Assert.Equal(PathFailureStage.Move, failedMovePath.FailedOn);
+        Assert.IsType<DirectoryNotFoundException>(failedMovePath.Exception);
+        Assert.Empty(result.DeleteStep.Successes);
+        Assert.Empty(result.DeleteStep.Failed);
+    }
+
+    [Fact]
+    public void Cleanup_StagedPathDisappearsBeforeDelete_MarksDeleteFailureInsteadOfThrowing()
+    {
+        // Arrange
+        var binPath = $@"{RootPath}\projectA\bin";
+        var fileSystem = CreateFileSystem(
+            directories:
+            [
+                $@"{RootPath}\projectA",
+                binPath
+            ]);
+        var service = new CleanupService(fileSystem);
+        service.OnMovePath += path => fileSystem.DeleteDirectory(path.MovePath);
+        var settings = CreateSettings(fileSystem);
+
+        // Act
+        var result = service.Cleanup(() => true, settings, CancellationToken.None);
+
+        // Assert
+        var failedDeletePath = Assert.Single(result.DeleteStep.Failed);
+
+        Assert.Equal(binPath, failedDeletePath.Value);
+        Assert.Equal(PathFailureStage.Delete, failedDeletePath.FailedOn);
+        Assert.IsType<DirectoryNotFoundException>(failedDeletePath.Exception);
+        Assert.Empty(result.DeleteStep.Successes);
+    }
+
+    [Fact]
+    public void Cleanup_WhenDirectoryEnumerationThrowsMidTraversal_CollectsPartialResultsAndFailure()
+    {
+        // Arrange
+        var projectABinPath = $@"{RootPath}\projectA\bin";
+        var projectBBinPath = $@"{RootPath}\projectB\bin";
+        var innerFileSystem = CreateFileSystem(
+            directories:
+            [
+                $@"{RootPath}\projectA",
+                projectABinPath,
+                $@"{RootPath}\projectB",
+                projectBBinPath
+            ]);
+        var fileSystem = new ThrowsDuringDirectoryEnumerationFileSystem(innerFileSystem, RootPath, new IOException("mid-traversal directory failure"));
+        var service = new CleanupService(fileSystem);
+        var settings = CreateSettings(fileSystem, include: ["**/bin"]);
+
+        // Act
+        var result = service.Cleanup(() => false, settings, CancellationToken.None);
+
+        // Assert
+        var listedPath = Assert.Single(result.ListStep.Successes);
+        var failedPath = Assert.Single(result.ListStep.Failed);
+
+        Assert.Equal(projectABinPath, listedPath.Value);
+        Assert.Equal(RootPath, failedPath.Value);
+        Assert.Equal(PathFailureStage.List, failedPath.FailedOn);
+        Assert.IsType<IOException>(failedPath.Exception);
+        Assert.Empty(result.MoveStep.Successes);
+        Assert.Empty(result.MoveStep.Failed);
+    }
+
+    [Fact]
+    public void Cleanup_DirectoryDisappearsBeforeMove_ReportsPerPathMoveFailure()
+    {
+        // Arrange (#23 - disappearing-path regression)
+        var binPath = $@"{RootPath}\bin";
+        var fileSystem = CreateFileSystem(directories: [binPath]);
+
+        // Simulate the directory vanishing between list and move
+        fileSystem.MoveDirectoryExceptions.Add(binPath, new DirectoryNotFoundException("directory vanished"));
+
+        var service = new CleanupService(fileSystem);
+        var settings = CreateSettings(fileSystem);
+
+        // Act
+        var result = service.Cleanup(() => true, settings, CancellationToken.None);
+
+        // Assert
+        var listPath = Assert.Single(result.ListStep.Successes);
+        var failedMovePath = Assert.Single(result.MoveStep.Failed);
+
+        Assert.Same(listPath, failedMovePath);
+        Assert.Equal(PathFailureStage.Move, failedMovePath.FailedOn);
+        Assert.IsType<DirectoryNotFoundException>(failedMovePath.Exception);
+    }
+
+    [Fact]
+    public void Cleanup_FileDisappearsBeforeMove_ReportsPerPathMoveFailure()
+    {
+        // Arrange (#23 - disappearing-path regression)
+        var filePath = $@"{RootPath}\project\artifacts\build.log";
+        var fileSystem = CreateFileSystem(
+            directories:
+            [
+                $@"{RootPath}\project",
+                $@"{RootPath}\project\artifacts"
+            ],
+            files: [filePath]);
+
+        fileSystem.MoveFileExceptions.Add(filePath, new FileNotFoundException("file vanished"));
+
+        var service = new CleanupService(fileSystem);
+        var settings = CreateSettings(fileSystem, include: ["**/*.log"]);
+
+        // Act
+        var result = service.Cleanup(() => true, settings, CancellationToken.None);
+
+        // Assert
+        var failedMovePath = Assert.Single(result.MoveStep.Failed);
+
+        Assert.Equal(PathFailureStage.Move, failedMovePath.FailedOn);
+        Assert.IsType<FileNotFoundException>(failedMovePath.Exception);
+    }
+
+    [Fact]
+    public void Cleanup_DirectoryDisappearsBeforeDelete_ReportsPerPathDeleteFailure()
+    {
+        // Arrange (#23 - disappearing-path regression)
+        var binPath = $@"{RootPath}\bin";
+        var fileSystem = CreateFileSystem(directories: [binPath]);
+
+        var service = new CleanupService(fileSystem);
+        service.OnMovePath += path =>
+        {
+            // After move, the staged path will exist.
+            // Simulate it disappearing before delete.
+            fileSystem.DeleteDirectoryExceptions.TryAdd(
+                path.MovePath,
+                new DirectoryNotFoundException("staged directory vanished"));
+        };
+
+        var settings = CreateSettings(fileSystem);
+
+        // Act
+        var result = service.Cleanup(() => true, settings, CancellationToken.None);
+
+        // Assert
+        var failedDeletePath = Assert.Single(result.DeleteStep.Failed);
+
+        Assert.Equal(PathFailureStage.Delete, failedDeletePath.FailedOn);
+        Assert.IsType<DirectoryNotFoundException>(failedDeletePath.Exception);
+    }
+
+    [Fact]
+    public void Cleanup_DirectoryDisappearsBeforeDeleteWithSkipMove_ReportsPerPathDeleteFailure()
+    {
+        // Arrange (#23 - disappearing-path regression, skip-move variant)
+        var binPath = $@"{RootPath}\bin";
+        var fileSystem = CreateFileSystem(directories: [binPath]);
+
+        // When skip-move is used, the original path is deleted directly
+        fileSystem.DeleteDirectoryExceptions.Add(binPath, new DirectoryNotFoundException("directory vanished"));
+
+        var service = new CleanupService(fileSystem);
+        var settings = CreateSettings(fileSystem, skipMove: true);
+
+        // Act
+        var result = service.Cleanup(() => true, settings, CancellationToken.None);
+
+        // Assert
+        var failedDeletePath = Assert.Single(result.DeleteStep.Failed);
+
+        Assert.Equal(PathFailureStage.Delete, failedDeletePath.FailedOn);
+        Assert.IsType<DirectoryNotFoundException>(failedDeletePath.Exception);
+    }
+
     private static InMemoryFileSystem CreateFileSystem(string[]? directories = null, string[]? files = null)
     {
         if (directories == null && files == null)
@@ -487,5 +687,56 @@ public sealed class CleanupServiceTests
             fileSystem.Directories,
             path => path.StartsWith(expectedPrefix, StringComparison.OrdinalIgnoreCase) &&
                 Path.GetRelativePath(TempPath, path).IndexOfAny(['\\', '/']) < 0);
+    }
+
+    private sealed class ThrowsDuringDirectoryEnumerationFileSystem(InMemoryFileSystem innerFileSystem, string failingPath, Exception exception) : IFileSystem
+    {
+        private readonly InMemoryFileSystem _innerFileSystem = innerFileSystem ?? throw new ArgumentNullException(nameof(innerFileSystem));
+        private readonly Exception _exception = exception ?? throw new ArgumentNullException(nameof(exception));
+        private readonly string _failingPath = failingPath ?? throw new ArgumentNullException(nameof(failingPath));
+        private bool _hasThrown;
+
+        public void CreateDirectory(string path) => _innerFileSystem.CreateDirectory(path);
+
+        public void DeleteDirectory(string path) => _innerFileSystem.DeleteDirectory(path);
+
+        public void DeleteFile(string path) => _innerFileSystem.DeleteFile(path);
+
+        public bool DirectoryExists(string path) => _innerFileSystem.DirectoryExists(path);
+
+        public IEnumerable<string> EnumerateDirectories(string path)
+        {
+            if (_hasThrown || !string.Equals(path, _failingPath, StringComparison.OrdinalIgnoreCase))
+            {
+                return _innerFileSystem.EnumerateDirectories(path);
+            }
+
+            return EnumerateDirectoriesWithFailure(path);
+        }
+
+        public IEnumerable<string> EnumerateFiles(string path) => _innerFileSystem.EnumerateFiles(path);
+
+        public string GetCurrentDirectory() => _innerFileSystem.GetCurrentDirectory();
+
+        public string GetTempPath() => _innerFileSystem.GetTempPath();
+
+        public void MoveDirectory(string sourcePath, string destinationPath) => _innerFileSystem.MoveDirectory(sourcePath, destinationPath);
+
+        public void MoveFile(string sourcePath, string destinationPath) => _innerFileSystem.MoveFile(sourcePath, destinationPath);
+
+        private IEnumerable<string> EnumerateDirectoriesWithFailure(string path)
+        {
+            var directories = _innerFileSystem.EnumerateDirectories(path)
+                .Order(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            if (directories.Length > 0)
+            {
+                yield return directories[0];
+            }
+
+            _hasThrown = true;
+            throw _exception;
+        }
     }
 }

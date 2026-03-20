@@ -1,6 +1,6 @@
 ﻿using DotnetCleanup.IO;
 
-namespace DotNetCleanup.Testing.IO;
+namespace DotnetCleanup.Testing.IO;
 
 public class InMemoryFileSystem(string[]? directories = null, string[]? files = null) : IFileSystem
 {
@@ -45,6 +45,11 @@ public class InMemoryFileSystem(string[]? directories = null, string[]? files = 
                 throw exception;
             }
 
+            if (!Directories.Contains(normalizedPath))
+            {
+                throw new DirectoryNotFoundException($"Could not find a part of the path '{normalizedPath}'.");
+            }
+
             var directoryPrefix = $"{normalizedPath}{Path.DirectorySeparatorChar}";
 
             Directories.RemoveWhere(x => s_pathComparer.Equals(x, normalizedPath) || x.StartsWith(directoryPrefix, StringComparison.OrdinalIgnoreCase));
@@ -84,14 +89,12 @@ public class InMemoryFileSystem(string[]? directories = null, string[]? files = 
                 throw pathException;
             }
 
-            var files = Files.Where(x => IsDirectChild(normalizedPath, x)).ToArray();
+            var files = Files
+                .Where(x => IsDirectChild(normalizedPath, x))
+                .Order(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
 
-            if (TryGetChildException(files, ListFileExceptions, out var childException))
-            {
-                throw childException!;
-            }
-
-            return files;
+            return EnumerateChildren(files, ListFileExceptions);
         }
     }
 
@@ -105,14 +108,12 @@ public class InMemoryFileSystem(string[]? directories = null, string[]? files = 
                 throw pathException;
             }
 
-            var directories = Directories.Where(x => IsDirectChild(normalizedPath, x)).ToArray();
+            var directories = Directories
+                .Where(x => IsDirectChild(normalizedPath, x))
+                .Order(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
 
-            if (TryGetChildException(directories, ListDirectoryExceptions, out var childException))
-            {
-                throw childException!;
-            }
-
-            return directories;
+            return EnumerateChildren(directories, ListDirectoryExceptions);
         }
     }
 
@@ -145,7 +146,7 @@ public class InMemoryFileSystem(string[]? directories = null, string[]? files = 
 
             if (directoriesToMove.Length == 0)
             {
-                return;
+                throw new DirectoryNotFoundException($"Could not find a part of the path '{normalizedSourcePath}'.");
             }
 
             var filesToMove = Files
@@ -184,10 +185,12 @@ public class InMemoryFileSystem(string[]? directories = null, string[]? files = 
                 throw exception;
             }
 
-            if (Files.Remove(normalizedSourcePath))
+            if (!Files.Remove(normalizedSourcePath))
             {
-                Files.Add(NormalizePath(destinationPath));
+                throw new FileNotFoundException($"Could not find file '{normalizedSourcePath}'.", normalizedSourcePath);
             }
+
+            Files.Add(NormalizePath(destinationPath));
         }
     }
 
@@ -237,17 +240,16 @@ public class InMemoryFileSystem(string[]? directories = null, string[]? files = 
         return $"{destinationPath}{value[sourcePath.Length..]}";
     }
 
-    private static bool TryGetChildException(string[] childPaths, Dictionary<string, Exception> exceptionsByPath, out Exception? exception)
+    private static IEnumerable<string> EnumerateChildren(string[] childPaths, Dictionary<string, Exception> exceptionsByPath)
     {
-        foreach (var childPath in childPaths.Order(StringComparer.OrdinalIgnoreCase))
+        foreach (var childPath in childPaths)
         {
-            if (exceptionsByPath.TryGetValue(childPath, out exception))
+            if (exceptionsByPath.TryGetValue(childPath, out var exception))
             {
-                return true;
+                throw exception;
             }
-        }
 
-        exception = null;
-        return false;
+            yield return childPath;
+        }
     }
 }

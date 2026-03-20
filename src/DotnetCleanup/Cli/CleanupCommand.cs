@@ -28,18 +28,18 @@ public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
     {
         _service.OnListPathsStepStart += () =>
         {
-            WriteVerbosityDetailed(settings, ":magnifying_glass_tilted_right: Listing files...");
+            WriteVerbosityDetailed(settings, ":magnifying_glass_tilted_right: Listing paths...");
         };
 
         _service.OnMovePathsStepStart += () =>
         {
             if (settings.ShouldSkipMove())
             {
-                WriteVerbosityNormal(settings, "[cyan]Skipping moving files[/]");
+                WriteVerbosityNormal(settings, "[cyan]Skipping moving paths[/]");
             }
             else
             {
-                WriteVerbosityDetailed(settings, ":open_file_folder: Moving files...");
+                WriteVerbosityDetailed(settings, ":open_file_folder: Moving paths...");
             }
         };
 
@@ -47,31 +47,22 @@ public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
         {
             if (settings.ShouldSkipDelete())
             {
-                WriteVerbosityNormal(settings, "[cyan]Skipping deleting files[/]");
+                WriteVerbosityNormal(settings, "[cyan]Skipping deleting paths[/]");
             }
             else
             {
-                WriteVerbosityDetailed(settings, ":cross_mark: Deleting files...");
+                WriteVerbosityDetailed(settings, ":cross_mark: Deleting paths...");
             }
         };
 
-        _service.OnListPathsStepDone += step =>
-        {
-            if (step.Successes.Count == 0)
-            {
-                _console.MarkupLine("[yellow]No files found[/]");
-                return;
-            }
+        _service.OnListPathsStepDone += step => WriteListStepCompleted(settings, step);
 
-            WriteVerbosityNormal(settings, $"[blue]{GetFilesFoundText(step.Successes.Count)}[/]");
-        };
+        _service.OnMovePathsStepDone += step => WriteStepCompleted(settings, settings.ShouldSkipMove(), step, "Move", "blue");
+        _service.OnDeletePathsStepDone += step => WriteStepCompleted(settings, settings.ShouldSkipDelete(), step, "Delete", "blue");
 
-        _service.OnMovePathsStepDone += step => WriteStepCompleted(settings, settings.ShouldSkipMove(), step, "Move");
-        _service.OnDeletePathsStepDone += step => WriteStepCompleted(settings, settings.ShouldSkipDelete(), step, "Delete");
-
-        _service.OnListPath += path => WriteOnPath(settings, path, "gray", "Error listing");
-        _service.OnMovePath += path => WriteOnPath(settings, path, "cyan", "Error moving");
-        _service.OnDeletePath += path => WriteOnPath(settings, path, "Purple_1", "Error deleting", useMovePathForFailure: true);
+        _service.OnListPath += path => WriteOnPath(settings, path, "gray", "Error listing path");
+        _service.OnMovePath += path => WriteOnPath(settings, path, "cyan", "Error moving path");
+        _service.OnDeletePath += path => WriteOnPath(settings, path, "Purple_1", "Error deleting path", useMovePathForFailure: true);
     }
 
     private bool ConfirmCleanup(CleanupSettings settings)
@@ -127,13 +118,38 @@ public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
     {
         if (!skipStep && settings.IsVerbosityDetailed())
         {
-            if (step.Successes.Count == 0)
+            if (step.Successes.Count == 0 && step.Failed.Count == 0)
             {
-                _console.MarkupLine("[yellow]No files found[/]");
+                _console.MarkupLine("[yellow]No matching paths found[/]");
                 return;
             }
 
             _console.MarkupLine($"[{color}]{stepName} step completed.[/]");
+            WriteStepSummary(step);
+        }
+    }
+
+    private void WriteListStepCompleted(CleanupSettings settings, CleanupStep step)
+    {
+        if (step.Successes.Count == 0)
+        {
+            if (step.Failed.Count == 0)
+            {
+                _console.MarkupLine("[yellow]No matching paths found[/]");
+            }
+            else
+            {
+                WriteVerbosityNormal(settings, "[yellow]Listing completed with failures[/]");
+                WriteStepSummary(step);
+            }
+
+            return;
+        }
+
+        WriteVerbosityNormal(settings, $"[blue]{GetPathsFoundText(step.Successes.Count)}[/]");
+
+        if (step.Failed.Count > 0 && settings.IsVerbosityNormal())
+        {
             WriteStepSummary(step);
         }
     }
@@ -159,9 +175,9 @@ public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
         }
     }
 
-    private static string GetFilesFoundText(int count)
+    private static string GetPathsFoundText(int count)
     {
-        var noun = count == 1 ? "file" : "files";
+        var noun = count == 1 ? "path" : "paths";
         return $"{count} {noun} found";
     }
 

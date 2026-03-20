@@ -14,16 +14,13 @@ public static class PathUtility
 
     public static string? GetParentPath(string? path)
     {
-        var directoryIndex =
-            path?.LastIndexOf(s_directorySeparatorChar)
-            ?? -1;
-
-        if (directoryIndex < 0)
+        var normalizedPath = GetNormalizedPath(path);
+        if (string.IsNullOrWhiteSpace(normalizedPath))
         {
             return null;
         }
 
-        return path?[..directoryIndex];
+        return Path.GetDirectoryName(normalizedPath);
     }
 
     public static string? GetRelativePath(string rootPath, string? path)

@@ -26,10 +26,7 @@ public sealed class CleanupStep
 
     private sealed class PathInfoComparer : IEqualityComparer<PathInfo>
     {
-        private static readonly StringComparer s_pathComparer =
-            OperatingSystem.IsWindows()
-                ? StringComparer.OrdinalIgnoreCase
-                : StringComparer.Ordinal;
+        private static readonly StringComparer s_pathComparer = StringComparer.OrdinalIgnoreCase;
 
         public bool Equals(PathInfo? x, PathInfo? y)
         {

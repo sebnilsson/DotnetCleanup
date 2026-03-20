@@ -1,4 +1,5 @@
-﻿using DotnetCleanup.Cli;
+﻿using System.Diagnostics.CodeAnalysis;
+using DotnetCleanup.Cli;
 using Microsoft.Extensions.FileSystemGlobbing;
 
 namespace DotnetCleanup.IO;
@@ -50,7 +51,9 @@ public sealed class FileSystemService(IFileSystem fileSystem)
         }
         catch (Exception ex) when (
             ex is UnauthorizedAccessException ||
-            ex is IOException)
+            ex is IOException ||
+            ex is DirectoryNotFoundException ||
+            ex is FileNotFoundException)
         {
             path.SetFailedOnMove(ex);
         }
@@ -77,7 +80,9 @@ public sealed class FileSystemService(IFileSystem fileSystem)
         }
         catch (Exception ex) when (
             ex is UnauthorizedAccessException ||
-            ex is IOException)
+            ex is IOException ||
+            ex is DirectoryNotFoundException ||
+            ex is FileNotFoundException)
         {
             path.SetFailedOnDelete(ex);
         }
@@ -133,7 +138,9 @@ public sealed class FileSystemService(IFileSystem fileSystem)
             yield break;
         }
 
-        foreach (var file in files)
+        using var fileEnumerator = files.GetEnumerator();
+
+        while (TryMoveNext(fileEnumerator, out var file, out fileException))
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -143,6 +150,13 @@ public sealed class FileSystemService(IFileSystem fileSystem)
             }
         }
 
+        if (fileException != null)
+        {
+            path.SetFailedOnList(fileException);
+            yield return path;
+            yield break;
+        }
+
         if (!TryEnumerateDirectories(path.Value, out var directories, out var directoryException))
         {
             path.SetFailedOnList(directoryException!);
@@ -150,7 +164,9 @@ public sealed class FileSystemService(IFileSystem fileSystem)
             yield break;
         }
 
-        foreach (var directory in directories)
+        using var directoryEnumerator = directories.GetEnumerator();
+
+        while (TryMoveNext(directoryEnumerator, out var directory, out directoryException))
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -168,6 +184,12 @@ public sealed class FileSystemService(IFileSystem fileSystem)
                     yield return subPath;
                 }
             }
+        }
+
+        if (directoryException != null)
+        {
+            path.SetFailedOnList(directoryException);
+            yield return path;
         }
     }
 
@@ -211,6 +233,29 @@ public sealed class FileSystemService(IFileSystem fileSystem)
         catch (Exception ex) when (IsPathEnumerationException(ex))
         {
             directories = [];
+            exception = ex;
+            return false;
+        }
+    }
+
+    private static bool TryMoveNext(IEnumerator<string> enumerator, [NotNullWhen(true)] out string? current, out Exception? exception)
+    {
+        try
+        {
+            if (!enumerator.MoveNext())
+            {
+                current = null;
+                exception = null;
+                return false;
+            }
+
+            current = enumerator.Current;
+            exception = null;
+            return true;
+        }
+        catch (Exception ex) when (IsPathEnumerationException(ex))
+        {
+            current = null;
             exception = ex;
             return false;
         }

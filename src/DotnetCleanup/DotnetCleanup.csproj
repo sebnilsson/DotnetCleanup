@@ -33,7 +33,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="DotNetCleanup.Tests" />
+    <InternalsVisibleTo Include="DotnetCleanup.Tests" />
     <InternalsVisibleTo Include="DotnetCleanup.IntegrationTests" />
   </ItemGroup>
 

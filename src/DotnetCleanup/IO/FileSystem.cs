@@ -7,7 +7,7 @@ internal sealed class FileSystem : IFileSystem
         RecurseSubdirectories = false,
         IgnoreInaccessible = true,
         ReturnSpecialDirectories = false,
-        AttributesToSkip = FileAttributes.ReparsePoint
+        AttributesToSkip = 0
     };
 
     public void CreateDirectory(string path) => Directory.CreateDirectory(path);

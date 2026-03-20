@@ -5,6 +5,7 @@ namespace DotnetCleanup;
 
 public sealed class CleanupService(IFileSystem fileSystem)
 {
+    private const int MaxParallelism = 4;
     private readonly FileSystemService _fileSystemService = new(fileSystem);
 
     public event Action<PathInfo>? OnListPath;
@@ -86,12 +87,7 @@ public sealed class CleanupService(IFileSystem fileSystem)
         }
         else
         {
-            var parallelOptions = new ParallelOptions
-            {
-                CancellationToken = cancellationToken
-            };
-
-            Parallel.ForEach(cleanupResult.ListStep.Successes, parallelOptions, path =>
+            Parallel.ForEach(cleanupResult.ListStep.Successes, CreateParallelOptions(cancellationToken), path =>
             {
                 var movePath = _fileSystemService.MovePath(tempPath, path, settings);
                 AddPath(cleanupResult.MoveStep, movePath, OnMovePath);
@@ -108,12 +104,7 @@ public sealed class CleanupService(IFileSystem fileSystem)
 
         if (!settings.ShouldSkipDelete())
         {
-            var parallelOptions = new ParallelOptions
-            {
-                CancellationToken = cancellationToken
-            };
-
-            Parallel.ForEach(cleanupResult.MoveStep.Successes, parallelOptions, path =>
+            Parallel.ForEach(cleanupResult.MoveStep.Successes, CreateParallelOptions(cancellationToken), path =>
             {
                 var deletePath = _fileSystemService.DeletePath(path);
 
@@ -136,5 +127,14 @@ public sealed class CleanupService(IFileSystem fileSystem)
         {
             pathEventHandler?.Invoke(path);
         }
+    }
+
+    private static ParallelOptions CreateParallelOptions(CancellationToken cancellationToken)
+    {
+        return new ParallelOptions
+        {
+            CancellationToken = cancellationToken,
+            MaxDegreeOfParallelism = Math.Clamp(Environment.ProcessorCount, 1, MaxParallelism)
+        };
     }
 }

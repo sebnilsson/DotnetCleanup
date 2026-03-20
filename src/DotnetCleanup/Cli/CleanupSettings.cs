@@ -35,15 +35,15 @@ public sealed partial class CleanupSettings : CommandSettings
     public bool SkipConfirm { get; init; }
 
     [CommandOption("--noop|--whatif|--what-if")]
-    [Description("No-op mode: list matching paths without moving or deleting files.")]
+    [Description("No-op mode: list matching paths without moving or deleting anything. Equivalent to --no-move and --no-delete.")]
     public bool Noop { get; init; }
 
     [CommandOption("--no-delete")]
-    [Description("Skip deleting files after moving them to temporary folder.")]
+    [Description("Skip deleting matched paths after moving them to temporary folder. Ignored when --noop is used.")]
     public bool SkipDelete { get; init; }
 
     [CommandOption("--no-move")]
-    [Description("Skip moving files to temporary folder before deletion.")]
+    [Description("Skip moving matched paths to temporary folder before deletion. Ignored when --noop is used.")]
     public bool SkipMove { get; init; }
 
     public DateTimeOffset StartedAt { get; } = DateTimeOffset.UtcNow;

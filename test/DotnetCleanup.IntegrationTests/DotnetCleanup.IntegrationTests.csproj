@@ -6,7 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DotNetCleanup.Testing\DotNetCleanup.Testing.csproj" />
+    <ProjectReference Include="..\DotnetCleanup.Testing\DotnetCleanup.Testing.csproj" />
   </ItemGroup>
 
   <ItemGroup>

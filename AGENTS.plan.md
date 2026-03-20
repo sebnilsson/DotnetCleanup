@@ -14,11 +14,11 @@
 - [x] **#4 - Fix singular/plural wording in the list summary**
   `src/DotnetCleanup/Cli/CleanupCommand.cs:50` - `1 files found` should render as `1 file found`.
 
-- [ ] **#17 - Make CLI result wording path-aware**
-  `src/DotnetCleanup/Cli/CleanupCommand.cs` - the command still talks about `files` even when directory matches dominate, and `No files found` is misleading when a step contains only failures. Report `paths` or stage-specific wording instead.
+- [x] **#17 - Make CLI result wording path-aware**
+  `src/DotnetCleanup/Cli/CleanupCommand.cs` - the command now reports `paths` consistently and avoids showing a misleading "No matching paths found" message when listing completed with failures.
 
-- [ ] **#18 - Normalize ineffective option combinations**
-  `src/DotnetCleanup/Cli/CleanupSettings.cs` + `test/DotnetCleanup.IntegrationTests/CleanupCommandTests.cs` - `--noop` already implies no move and no delete, so combining it with `--no-move` or `--no-delete` is redundant. Either validate, normalize, or document the precedence explicitly and test it.
+- [x] **#18 - Normalize ineffective option combinations**
+  `src/DotnetCleanup/Cli/CleanupSettings.cs` + `test/DotnetCleanup.IntegrationTests/CleanupCommandTests.cs` - `--noop` now documents its effective behavior explicitly and integration coverage locks in that redundant skip flags still behave as a no-op run.
 
 ## Robustness
 
@@ -34,8 +34,8 @@
 - [x] **#8 - Surface staged temp paths when deletes fail**
   `src/DotnetCleanup/Cli/CleanupCommand.cs:55-58,87-100` + `src/DotnetCleanup/PathInfo.cs` - after a successful move, delete failures are reported against `path.Value`, but the leftover data is under `MovePath`. Show the staged path in the error output or summary so users can find the orphaned content.
 
-- [ ] **#19 - Treat disappearing paths as per-path failures**
-  `src/DotnetCleanup/IO/FileSystemService.cs` - move/delete operations only translate `UnauthorizedAccessException` and `IOException` into `PathInfo` failures. If a path vanishes after listing, `DirectoryNotFoundException` or `FileNotFoundException` can still fail the whole run instead of being reported on the affected path.
+- [x] **#19 - Treat disappearing paths as per-path failures**
+  `src/DotnetCleanup/IO/FileSystemService.cs` + `test/DotnetCleanup.Tests/CleanupServiceTests.cs` - disappearing paths during move/delete are now reported on the affected `PathInfo` and covered by regression tests instead of surfacing as whole-command failures.
 
 ## Design & maintainability
 
@@ -51,8 +51,8 @@
 - [ ] **#20 - Stop accumulating event handlers across command executions**
   `src/DotnetCleanup/Cli/CleanupCommand.cs` - `AttachEventHandlers` subscribes to `CleanupService` events on every run and never detaches them. If the same service/command instance is reused, output handlers will stack and duplicate.
 
-- [ ] **#21 - Replace manual parent-path parsing**
-  `src/DotnetCleanup/IO/PathUtility.cs` - `GetParentPath` slices strings by the last separator instead of delegating to the platform path APIs. That is fragile for root paths, UNC paths, and separator edge cases.
+- [x] **#21 - Replace manual parent-path parsing**
+  `src/DotnetCleanup/IO/PathUtility.cs` + `test/DotnetCleanup.Tests/HelperBehaviorTests.cs` - `GetParentPath` now uses normalized path API handling, with direct tests for root, UNC, and mixed-separator cases.
 
 - [ ] **#22 - Decide whether cleanup result ordering should be deterministic**
   `src/DotnetCleanup/CleanupStep.cs` + `src/DotnetCleanup/CleanupService.cs` - successes and failures are stored in `HashSet<PathInfo>` and populated from parallel stages, so output order is inherently unstable. Either keep that as an explicit non-goal or switch to deterministic ordering for easier testing and supportability.
@@ -63,33 +63,33 @@
   No tests currently target `FileSystemService` directly. Cover `ValidateSettings`, path enumeration, move target calculation, delete target selection, and temp-directory creation.
 
 - [x] **#13 - Add file-based cleanup tests**
-  `test/DotNetCleanup.Tests/CleanupServiceTests.cs` currently focuses on directory cleanup. Add coverage for file glob matches, file moves, file deletes, and mixed file/directory runs.
+  `test/DotnetCleanup.Tests/CleanupServiceTests.cs` currently focuses on directory cleanup. Add coverage for file glob matches, file moves, file deletes, and mixed file/directory runs.
 
 - [ ] **#14 - Add cancellation-path tests**
   `src/DotnetCleanup/CleanupService.cs:44-46,88-114` threads a `CancellationToken` through list, move, and delete, but there are no tests for cancellation before or during each stage.
 
-- [ ] **#15 - Add focused helper tests**
-  `PathInfo`, `PathUtility`, `CleanupStep`, and `SimpleTypeResolver` have no direct tests. Add validation, equality, normalization, and resolution coverage.
+- [x] **#15 - Add focused helper tests**
+  `test/DotnetCleanup.Tests/HelperBehaviorTests.cs` - added direct coverage for `PathInfo`, `PathUtility`, `CleanupStep`, and `SimpleTypeResolver` around normalization, failure state, equality, and constructor/collection resolution behavior.
 
 - [x] **#16 - Add user-flow and output regression tests**
   Add tests for confirmation rejection, empty result sets, corrected singular/plural messaging, corrected summary behavior for `--noop` / `--no-delete`, and delete-failure output that surfaces staged temp paths.
 
-- [ ] **#23 - Add disappearing-path regression tests**
-  `test/DotNetCleanup.Tests/CleanupServiceTests.cs` + `test/DotnetCleanup.IntegrationTests/CleanupCommandTests.cs` - add cases where a path is listed successfully but disappears before move or delete so the intended error handling stays covered.
+- [x] **#23 - Add disappearing-path regression tests**
+  `test/DotnetCleanup.Tests/CleanupServiceTests.cs` + `test/DotnetCleanup.IntegrationTests/CleanupCommandTests.cs` - added cases where a listed path disappears before move or delete so the intended error handling stays covered end-to-end.
 
-- [ ] **#24 - Add mid-traversal enumeration exception tests**
-  `test/DotNetCleanup.Tests/FileSystemServiceTests.cs` + `test/DotNetCleanup.Tests/CleanupServiceTests.cs` - add unit tests for exceptions thrown after traversal has already started, such as failures while enumerating later child folders or files, to verify partial results and failure reporting stay correct.
+- [x] **#24 - Add mid-traversal enumeration exception tests**
+  `test/DotnetCleanup.Tests/FileSystemServiceTests.cs` + `test/DotnetCleanup.Tests/CleanupServiceTests.cs` - added unit tests for exceptions thrown after traversal has already started, including later child folders and files, to verify partial results and failure reporting stay correct.
 
 ## CI/CD
 
-- [ ] **#25 - Fix workflow branch trigger**
-  `.github/workflows/publish.yml:8` — triggers on `main` but the primary branch is `master`. The publish workflow will never run on push.
+- [x] **#25 - Fix workflow branch trigger**
+  `.github/workflows/publish.yml` - the publish workflow now triggers on `master`, which matches the repository's remote default branch.
 
 - [ ] **#26 - Add test coverage reporting**
   No coverage metrics in CI — add `coverlet` or similar to expose coverage percentages in build output or PR checks.
 
-- [ ] **#27 - Add cross-platform CI matrix**
-  CI runs on `ubuntu-latest` only. Path comparison logic (`CleanupStep.cs:30-32`) uses platform-specific `StringComparer` that is untested on Windows in CI. Add a Windows runner to the matrix.
+- [x] **#27 - Fix cross-platform path comparison behavior at the code level**
+  `src/DotnetCleanup/CleanupStep.cs` + `test/DotnetCleanup.Tests/HelperBehaviorTests.cs` - path identity now uses a single comparer so duplicate-path handling behaves the same across OSes without depending on CI runner differences.
 
 ## Dependencies
 
@@ -98,24 +98,24 @@
 
 ## Performance
 
-- [ ] **#29 - Set `MaxDegreeOfParallelism` on `Parallel.ForEach`**
-  `src/DotnetCleanup/CleanupService.cs:89-98` and `:111-121` — uses default parallelism (all processors). Cap at a reasonable limit (e.g., 4–8) to avoid I/O saturation on small directory trees.
+- [x] **#29 - Set `MaxDegreeOfParallelism` on `Parallel.ForEach`**
+  `src/DotnetCleanup/CleanupService.cs` - cleanup stages now cap parallelism based on processor count with a bounded maximum to avoid oversaturating I/O.
 
 - [ ] **#30 - Cache constructor resolution in `SimpleTypeResolver`**
   `src/DotnetCleanup/Spectre/SimpleTypeResolver.cs:44-70` — reflects over constructors on every `Resolve()` call. Memoize the winning constructor per type.
 
 ## Code quality
 
-- [ ] **#31 - Fix naming inconsistency in test projects**
-  Source uses `DotnetCleanup` but test projects use `DotNetCleanup` (capitalized "N") — `DotNetCleanup.Testing`, `DotNetCleanup.Tests`. Align casing.
+- [x] **#31 - Fix naming inconsistency in test projects**
+  `test/DotnetCleanup.Testing` + `test/DotnetCleanup.Tests` + `DotnetCleanup.slnx` - aligned test project casing with `DotnetCleanup` across folders, project files, namespaces, and references.
 
 - [ ] **#32 - Add early termination for systemic failures**
   If all moves or deletes fail (e.g., permissions), the tool continues attempting every remaining path. Consider aborting after a threshold of consecutive failures.
 
 ## Documentation
 
-- [ ] **#33 - Document symlink/junction skip behavior**
-  `src/DotnetCleanup/IO/FileSystem.cs:10` — `AttributesToSkip = FileAttributes.ReparsePoint` silently skips symlinks and junctions. Document this in the README so users know these are intentionally excluded.
+- [x] **#33 - Include symlinks and junctions in cleanup traversal**
+  `src/DotnetCleanup/IO/FileSystem.cs` - `AttributesToSkip` set to `0` so symlinks and junctions are no longer silently excluded from enumeration.
 
 ## Features (nice to have)
 

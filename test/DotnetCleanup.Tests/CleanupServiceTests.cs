@@ -7,24 +7,24 @@ namespace DotnetCleanup.Tests;
 
 public sealed class CleanupServiceTests
 {
-    private const string RootPath = InMemoryFileSystem.DefaultRootPath;
-    private const string TempPath = InMemoryFileSystem.DefaultTempPath;
+    private static readonly string RootPath = InMemoryFileSystem.DefaultRootPath;
+    private static readonly string TempPath = InMemoryFileSystem.DefaultTempPath;
 
     [Fact]
     public void Cleanup_GlobIncludePatterns_ListsOnlyMatchingPaths()
     {
         // Arrange
-        var projectAObjPath = $@"{RootPath}\projectA\obj";
-        var projectABinPath = $@"{RootPath}\projectA\bin";
-        var projectBObjPath = $@"{RootPath}\projectB\obj";
+        var projectAObjPath = Root("projectA", "obj");
+        var projectABinPath = Root("projectA", "bin");
+        var projectBObjPath = Root("projectB", "obj");
 
         var fileSystem = CreateFileSystem(
             directories:
             [
-                $@"{RootPath}\projectA",
+                Root("projectA"),
                 projectABinPath,
                 projectAObjPath,
-                $@"{RootPath}\projectB",
+                Root("projectB"),
                 projectBObjPath
             ]);
 
@@ -47,14 +47,14 @@ public sealed class CleanupServiceTests
     public void Cleanup_GlobExcludePatterns_ExcludesMatchingPaths()
     {
         // Arrange
-        var projectABinPath = $@"{RootPath}\projectA\bin";
-        var projectBBinPath = $@"{RootPath}\projectB\bin";
+        var projectABinPath = Root("projectA", "bin");
+        var projectBBinPath = Root("projectB", "bin");
         var fileSystem = CreateFileSystem(
             directories:
             [
-                $@"{RootPath}\projectA",
+                Root("projectA"),
                 projectABinPath,
-                $@"{RootPath}\projectB",
+                Root("projectB"),
                 projectBBinPath
             ]);
 
@@ -78,14 +78,14 @@ public sealed class CleanupServiceTests
     public void Cleanup_ExcludePatterns_TakePrecedenceOverIncludePatterns()
     {
         // Arrange
-        var projectABinPath = $@"{RootPath}\projectA\bin";
-        var projectBBinPath = $@"{RootPath}\projectB\bin";
+        var projectABinPath = Root("projectA", "bin");
+        var projectBBinPath = Root("projectB", "bin");
         var fileSystem = CreateFileSystem(
             directories:
             [
-                $@"{RootPath}\projectA",
+                Root("projectA"),
                 projectABinPath,
-                $@"{RootPath}\projectB",
+                Root("projectB"),
                 projectBBinPath
             ]);
 
@@ -112,8 +112,8 @@ public sealed class CleanupServiceTests
         var fileSystem = CreateFileSystem(
             directories:
             [
-                $@"{RootPath}\src",
-                $@"{RootPath}\src\bin"
+                Root("src"),
+                Root("src", "bin")
             ]);
 
         var service = new CleanupService(fileSystem);
@@ -122,7 +122,7 @@ public sealed class CleanupServiceTests
         // Act
         var result = service.Cleanup(() => true, settings, CancellationToken.None);
         var tempRunPath = GetTempRunPath(fileSystem, settings);
-        var expectedMovedPath = Path.Combine(tempRunPath, @"src\bin");
+        var expectedMovedPath = CombinePath(tempRunPath, "src", "bin");
 
         // Assert
         var listPath = Assert.Single(result.ListStep.Successes);
@@ -140,7 +140,7 @@ public sealed class CleanupServiceTests
     public void Cleanup_MarksMoveFailuresOnPathInfoAndAddsToMoveFailed()
     {
         // Arrange
-        var binPath = $@"{RootPath}\bin";
+        var binPath = Root("bin");
         var fileSystem = CreateFileSystem(directories: [binPath]);
 
         fileSystem.MoveDirectoryExceptions.Add(binPath, new IOException("move failed"));
@@ -166,7 +166,7 @@ public sealed class CleanupServiceTests
     public void Cleanup_MarksDeleteFailuresOnPathInfoAndAddsToDeleteFailed()
     {
         // Arrange
-        var binPath = $@"{RootPath}\bin";
+        var binPath = Root("bin");
         var fileSystem = CreateFileSystem(directories: [binPath]);
 
         var service = new CleanupService(fileSystem);
@@ -191,7 +191,7 @@ public sealed class CleanupServiceTests
     public void Cleanup_DeletesOriginalPathsWhenSkipMoveIsEnabled()
     {
         // Arrange
-        var binPath = $@"{RootPath}\bin";
+        var binPath = Root("bin");
         var fileSystem = CreateFileSystem(directories: [binPath]);
 
         var service = new CleanupService(fileSystem);
@@ -223,7 +223,7 @@ public sealed class CleanupServiceTests
     public void Cleanup_SkipsMoveAndDeleteWhenNoopIsEnabled()
     {
         // Arrange
-        var binPath = $@"{RootPath}\bin";
+        var binPath = Root("bin");
         var fileSystem = CreateFileSystem(directories: [binPath]);
 
         var service = new CleanupService(fileSystem);
@@ -255,7 +255,7 @@ public sealed class CleanupServiceTests
     public void Cleanup_MovesPathsAndSkipsDeleteWhenSkipDeleteIsEnabled()
     {
         // Arrange
-        var binPath = $@"{RootPath}\bin";
+        var binPath = Root("bin");
         var fileSystem = CreateFileSystem(directories: [binPath]);
 
         var service = new CleanupService(fileSystem);
@@ -270,7 +270,7 @@ public sealed class CleanupServiceTests
         // Act
         var result = service.Cleanup(() => true, settings, CancellationToken.None);
         var tempRunPath = GetTempRunPath(fileSystem, settings);
-        var movedBinPath = Path.Combine(tempRunPath, @"bin");
+        var movedBinPath = CombinePath(tempRunPath, "bin");
 
         // Assert
         var movedPath = Assert.Single(result.MoveStep.Successes);
@@ -313,24 +313,24 @@ public sealed class CleanupServiceTests
     public void Cleanup_TracksDifferentPathFailuresAcrossListMoveAndDeleteStages()
     {
         // Arrange
-        var projectABinPath = $@"{RootPath}\projectA\bin";
-        var projectBBinPath = $@"{RootPath}\projectB\bin";
-        var projectCBinPath = $@"{RootPath}\projectC\bin";
-        var brokenProjectPath = $@"{RootPath}\brokenProject";
+        var projectABinPath = Root("projectA", "bin");
+        var projectBBinPath = Root("projectB", "bin");
+        var projectCBinPath = Root("projectC", "bin");
+        var brokenProjectPath = Root("brokenProject");
         var fileSystem = CreateFileSystem(
             directories:
             [
-                $@"{RootPath}\projectA",
+                Root("projectA"),
                 projectABinPath,
-                $@"{RootPath}\projectB",
+                Root("projectB"),
                 projectBBinPath,
-                $@"{RootPath}\projectC",
+                Root("projectC"),
                 projectCBinPath,
                 brokenProjectPath,
-                $@"{brokenProjectPath}\bin"
+                CombinePath(brokenProjectPath, "bin")
             ]);
 
-        fileSystem.ListDirectoryExceptions.Add($@"{brokenProjectPath}\bin", new IOException("list failed for path"));
+        fileSystem.ListDirectoryExceptions.Add(CombinePath(brokenProjectPath, "bin"), new IOException("list failed for path"));
         fileSystem.MoveDirectoryExceptions.Add(projectBBinPath, new IOException("move failed for path"));
 
         var service = new CleanupService(fileSystem);
@@ -358,14 +358,14 @@ public sealed class CleanupServiceTests
         Assert.True(string.IsNullOrWhiteSpace(moveFailedPath.MovePath));
 
         var moveSucceededProjectA = Assert.Single(result.MoveStep.Successes, x => x.Value == projectABinPath);
-        Assert.StartsWith($@"{TempPath}\~dotnetcleanup-", moveSucceededProjectA.MovePath, StringComparison.OrdinalIgnoreCase);
-        Assert.EndsWith(@"projectA\bin", moveSucceededProjectA.MovePath, StringComparison.OrdinalIgnoreCase);
+        Assert.StartsWith(GetTempRunPrefix(settings), moveSucceededProjectA.MovePath, StringComparison.OrdinalIgnoreCase);
+        Assert.EndsWith("projectA/bin", moveSucceededProjectA.MovePath.Replace('\\', '/'), StringComparison.OrdinalIgnoreCase);
 
         var deleteFailedPath = Assert.Single(result.DeleteStep.Failed);
         Assert.Equal(projectCBinPath, deleteFailedPath.Value);
         Assert.Equal(PathFailureStage.Delete, deleteFailedPath.FailedOn);
-        Assert.StartsWith($@"{TempPath}\~dotnetcleanup-", deleteFailedPath.MovePath, StringComparison.OrdinalIgnoreCase);
-        Assert.EndsWith(@"projectC\bin", deleteFailedPath.MovePath, StringComparison.OrdinalIgnoreCase);
+        Assert.StartsWith(GetTempRunPrefix(settings), deleteFailedPath.MovePath, StringComparison.OrdinalIgnoreCase);
+        Assert.EndsWith("projectC/bin", deleteFailedPath.MovePath.Replace('\\', '/'), StringComparison.OrdinalIgnoreCase);
 
         var deleteSucceededPath = Assert.Single(result.DeleteStep.Successes);
         Assert.Equal(projectABinPath, deleteSucceededPath.Value);
@@ -378,12 +378,12 @@ public sealed class CleanupServiceTests
     public void Cleanup_FileMatches_MovesAndDeletesFiles()
     {
         // Arrange
-        var logFilePath = $@"{RootPath}\projectA\artifacts\build.log";
+        var logFilePath = Root("projectA", "artifacts", "build.log");
         var fileSystem = CreateFileSystem(
             directories:
             [
-                $@"{RootPath}\projectA",
-                $@"{RootPath}\projectA\artifacts"
+                Root("projectA"),
+                Root("projectA", "artifacts")
             ],
             files:
             [
@@ -396,7 +396,7 @@ public sealed class CleanupServiceTests
         // Act
         var result = service.Cleanup(() => true, settings, CancellationToken.None);
         var tempRunPath = GetTempRunPath(fileSystem, settings);
-        var movedLogFilePath = Path.Combine(tempRunPath, @"projectA\artifacts\build.log");
+        var movedLogFilePath = CombinePath(tempRunPath, "projectA", "artifacts", "build.log");
 
         // Assert
         var listedPath = Assert.Single(result.ListStep.Successes);
@@ -415,14 +415,14 @@ public sealed class CleanupServiceTests
     public void Cleanup_MixedFileAndDirectoryMatches_TracksBothPathKinds()
     {
         // Arrange
-        var binPath = $@"{RootPath}\projectA\bin";
-        var logFilePath = $@"{RootPath}\projectA\artifacts\build.log";
+        var binPath = Root("projectA", "bin");
+        var logFilePath = Root("projectA", "artifacts", "build.log");
         var fileSystem = CreateFileSystem(
             directories:
             [
-                $@"{RootPath}\projectA",
+                Root("projectA"),
                 binPath,
-                $@"{RootPath}\projectA\artifacts"
+                Root("projectA", "artifacts")
             ],
             files:
             [
@@ -448,11 +448,11 @@ public sealed class CleanupServiceTests
     public void Cleanup_PathDisappearsAfterListing_MarksMoveFailureInsteadOfThrowing()
     {
         // Arrange
-        var binPath = $@"{RootPath}\projectA\bin";
+        var binPath = Root("projectA", "bin");
         var fileSystem = CreateFileSystem(
             directories:
             [
-                $@"{RootPath}\projectA",
+                Root("projectA"),
                 binPath
             ]);
         var service = new CleanupService(fileSystem);
@@ -483,11 +483,11 @@ public sealed class CleanupServiceTests
     public void Cleanup_StagedPathDisappearsBeforeDelete_MarksDeleteFailureInsteadOfThrowing()
     {
         // Arrange
-        var binPath = $@"{RootPath}\projectA\bin";
+        var binPath = Root("projectA", "bin");
         var fileSystem = CreateFileSystem(
             directories:
             [
-                $@"{RootPath}\projectA",
+                Root("projectA"),
                 binPath
             ]);
         var service = new CleanupService(fileSystem);
@@ -510,14 +510,14 @@ public sealed class CleanupServiceTests
     public void Cleanup_WhenDirectoryEnumerationThrowsMidTraversal_CollectsPartialResultsAndFailure()
     {
         // Arrange
-        var projectABinPath = $@"{RootPath}\projectA\bin";
-        var projectBBinPath = $@"{RootPath}\projectB\bin";
+        var projectABinPath = Root("projectA", "bin");
+        var projectBBinPath = Root("projectB", "bin");
         var innerFileSystem = CreateFileSystem(
             directories:
             [
-                $@"{RootPath}\projectA",
+                Root("projectA"),
                 projectABinPath,
-                $@"{RootPath}\projectB",
+                Root("projectB"),
                 projectBBinPath
             ]);
         var fileSystem = new ThrowsDuringDirectoryEnumerationFileSystem(innerFileSystem, RootPath, new IOException("mid-traversal directory failure"));
@@ -543,7 +543,7 @@ public sealed class CleanupServiceTests
     public void Cleanup_DirectoryDisappearsBeforeMove_ReportsPerPathMoveFailure()
     {
         // Arrange (#23 - disappearing-path regression)
-        var binPath = $@"{RootPath}\bin";
+        var binPath = Root("bin");
         var fileSystem = CreateFileSystem(directories: [binPath]);
 
         // Simulate the directory vanishing between list and move
@@ -568,12 +568,12 @@ public sealed class CleanupServiceTests
     public void Cleanup_FileDisappearsBeforeMove_ReportsPerPathMoveFailure()
     {
         // Arrange (#23 - disappearing-path regression)
-        var filePath = $@"{RootPath}\project\artifacts\build.log";
+        var filePath = Root("project", "artifacts", "build.log");
         var fileSystem = CreateFileSystem(
             directories:
             [
-                $@"{RootPath}\project",
-                $@"{RootPath}\project\artifacts"
+                Root("project"),
+                Root("project", "artifacts")
             ],
             files: [filePath]);
 
@@ -596,7 +596,7 @@ public sealed class CleanupServiceTests
     public void Cleanup_DirectoryDisappearsBeforeDelete_ReportsPerPathDeleteFailure()
     {
         // Arrange (#23 - disappearing-path regression)
-        var binPath = $@"{RootPath}\bin";
+        var binPath = Root("bin");
         var fileSystem = CreateFileSystem(directories: [binPath]);
 
         var service = new CleanupService(fileSystem);
@@ -625,7 +625,7 @@ public sealed class CleanupServiceTests
     public void Cleanup_DirectoryDisappearsBeforeDeleteWithSkipMove_ReportsPerPathDeleteFailure()
     {
         // Arrange (#23 - disappearing-path regression, skip-move variant)
-        var binPath = $@"{RootPath}\bin";
+        var binPath = Root("bin");
         var fileSystem = CreateFileSystem(directories: [binPath]);
 
         // When skip-move is used, the original path is deleted directly
@@ -679,9 +679,15 @@ public sealed class CleanupServiceTests
         };
     }
 
+    private static string Root(params string[] segments) => TestPath.Root(segments);
+
+    private static string CombinePath(string path, params string[] segments) => TestPath.Combine(path, segments);
+
+    private static string GetTempRunPrefix(CleanupSettings settings) => CleanupTempPath.GetRunDirectoryPrefix(TempPath, settings.StartedAt);
+
     private static string GetTempRunPath(InMemoryFileSystem fileSystem, CleanupSettings settings)
     {
-        var expectedPrefix = $@"{TempPath}\~dotnetcleanup-{settings.StartedAt:yyyyMMdd-HHmmss}-";
+        var expectedPrefix = GetTempRunPrefix(settings);
 
         return Assert.Single(
             fileSystem.Directories,

@@ -4,8 +4,9 @@ namespace DotnetCleanup.Testing.IO;
 
 public class InMemoryFileSystem(string[]? directories = null, string[]? files = null) : IFileSystem
 {
-    public const string DefaultRootPath = @"c:\root-path";
-    public const string DefaultTempPath = @"c:\temp-path";
+    public static string DefaultRootPath { get; } = TestPath.RootPath;
+
+    public static string DefaultTempPath { get; } = TestPath.TempPath;
 
     private static readonly StringComparer s_pathComparer = StringComparer.OrdinalIgnoreCase;
 
@@ -119,12 +120,12 @@ public class InMemoryFileSystem(string[]? directories = null, string[]? files = 
 
     public string GetCurrentDirectory()
     {
-        return "C:\\InMemoryCurrentDirectory";
+        return TestPath.CurrentDirectory;
     }
 
     public string GetTempPath()
     {
-        return "C:\\InMemoryTempPath";
+        return TestPath.SystemTempPath;
     }
 
     public void MoveDirectory(string sourcePath, string destinationPath)

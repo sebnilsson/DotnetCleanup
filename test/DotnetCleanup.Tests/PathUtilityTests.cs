@@ -1,4 +1,5 @@
 ﻿using DotnetCleanup.IO;
+using DotnetCleanup.Testing.IO;
 using Xunit;
 
 namespace DotnetCleanup.Tests;
@@ -8,17 +9,27 @@ public sealed class PathUtilityTests
     [Fact]
     public void GetNormalizedPath_NormalizesSlashesToPlatformSeparator()
     {
-        var result = PathUtility.GetNormalizedPath(@"c:/root/project/bin");
+        // Arrange
+        var path = "root/project/bin";
 
-        Assert.Equal($@"c:{Path.DirectorySeparatorChar}root{Path.DirectorySeparatorChar}project{Path.DirectorySeparatorChar}bin", result);
+        // Act
+        var result = PathUtility.GetNormalizedPath(path);
+
+        // Assert
+        Assert.Equal(TestPath.Combine("root", "project", "bin"), result);
     }
 
     [Fact]
     public void GetNormalizedPath_TrimsTrailingSeparator()
     {
-        var result = PathUtility.GetNormalizedPath($@"c:\root\project\bin{Path.DirectorySeparatorChar}");
+        // Arrange
+        var path = $"{TestPath.Root("project", "bin")}{Path.DirectorySeparatorChar}";
 
-        Assert.DoesNotMatch(@"[\\/]$", result!);
+        // Act
+        var result = PathUtility.GetNormalizedPath(path);
+
+        // Assert
+        Assert.DoesNotMatch(@"[\\/]+$", result!);
     }
 
     [Theory]
@@ -27,15 +38,21 @@ public sealed class PathUtilityTests
     [InlineData("   ")]
     public void GetNormalizedPath_ReturnsNullForNullOrWhiteSpace(string? value)
     {
+        // Act / Assert
         Assert.Null(PathUtility.GetNormalizedPath(value));
     }
 
     [Fact]
     public void GetParentPath_ReturnsParentDirectory()
     {
-        var result = PathUtility.GetParentPath($@"c:{Path.DirectorySeparatorChar}root{Path.DirectorySeparatorChar}project{Path.DirectorySeparatorChar}bin");
+        // Arrange
+        var path = TestPath.Root("project", "bin");
 
-        Assert.Equal($@"c:{Path.DirectorySeparatorChar}root{Path.DirectorySeparatorChar}project", result);
+        // Act
+        var result = PathUtility.GetParentPath(path);
+
+        // Assert
+        Assert.Equal(TestPath.Root("project"), result);
     }
 
     [Theory]
@@ -44,23 +61,34 @@ public sealed class PathUtilityTests
     [InlineData("   ")]
     public void GetParentPath_ReturnsNullForNullOrWhiteSpace(string? value)
     {
+        // Act / Assert
         Assert.Null(PathUtility.GetParentPath(value));
     }
 
     [Fact]
     public void GetParentPath_HandlesRootPath()
     {
-        // Path.GetDirectoryName returns null for root paths
-        var result = PathUtility.GetParentPath(@"c:\");
+        // Arrange
+        var rootPath = Path.GetPathRoot(TestPath.RootPath);
 
+        // Act
+        var result = PathUtility.GetParentPath(rootPath);
+
+        // Assert
         Assert.Null(result);
     }
 
     [Fact]
     public void GetRelativePath_ReturnsForwardSlashRelativePath()
     {
-        var result = PathUtility.GetRelativePath(@"c:\root", @"c:\root\project\bin");
+        // Arrange
+        var rootPath = TestPath.RootPath;
+        var path = TestPath.Root("project", "bin");
 
+        // Act
+        var result = PathUtility.GetRelativePath(rootPath, path);
+
+        // Assert
         Assert.Equal("project/bin", result);
     }
 
@@ -70,6 +98,7 @@ public sealed class PathUtilityTests
     [InlineData("   ")]
     public void GetRelativePath_ReturnsNullForNullOrWhiteSpacePath(string? value)
     {
-        Assert.Null(PathUtility.GetRelativePath(@"c:\root", value));
+        // Act / Assert
+        Assert.Null(PathUtility.GetRelativePath(TestPath.RootPath, value));
     }
 }

@@ -15,6 +15,7 @@ The CLI tool lives in `src/DotnetCleanup/` (command entry point, services, event
 - `src/DotnetCleanup/Cli/CleanupCommand.cs` is the application layer; binds CLI settings, subscribes to `CleanupService` events, prompts for confirmation, and renders output.
 - `src/DotnetCleanup/CleanupService.cs` is the entry point for the domain layer; validates settings, lists paths, confirms, ensures temp dir, moves, deletes, returns `CleanupResult`, and keeps a single `PathInfo` instance per path through all steps.
 - `src/DotnetCleanup/IO/FileSystemService.cs` performs glob matching + traversal and the move/delete operations using `IFileSystem`.
+- `src/DotnetCleanup/IO/CleanupTempPath.cs` is the single place that defines the temp run directory naming scheme (`~dotnetcleanup-...`) and path composition.
 - `src/DotnetCleanup/CleanupSettings.cs` defines options; `src/DotnetCleanup/CleanupStep.cs`, `src/DotnetCleanup/CleanupResult.cs`, and `src/DotnetCleanup/PathInfo.cs` capture per-step results (`Successes` and `Failed`) and track failure stage metadata (`List`, `Move`, `Delete`) on each `PathInfo`.
 
 ## Coding Style & Naming Conventions
@@ -23,6 +24,7 @@ Preserve Windows line endings (`CRLF`) for existing text files and do not normal
 
 ## Testing Guidelines
 Tests use xUnit in `test/DotnetCleanup.Tests/`. Add tests alongside new behavior and keep them deterministic. Use descriptive test class and method names; follow existing patterns in the test project. Use explicit `// Arrange`, `// Act`, and `// Assert` comments in each test method to separate phases. Run tests with `dotnet test DotnetCleanup.sln` before submitting changes.
+For path-oriented tests, prefer `test/DotnetCleanup.Testing/IO/TestPath.cs` helpers over hardcoded drive letters or `\` separators so assertions stay stable on both Windows and Linux.
 
 ## Commit & Pull Request Guidelines
 Commit messages in this repo are short and descriptive, often sentence-case or version-prefixed (e.g., `0.6.1: Roll Forward support`, `dotnet format`). Keep messages focused on a single change. For pull requests, include a brief summary, link related issues, and note the test command you ran (or why tests were not run). Update README or version metadata if the tool's behavior or packaging changes.

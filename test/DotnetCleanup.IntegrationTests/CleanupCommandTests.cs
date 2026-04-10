@@ -11,8 +11,8 @@ namespace DotnetCleanup.IntegrationTests;
 
 public sealed class CleanupCommandTests
 {
-    public const string RootPath = InMemoryFileSystem.DefaultRootPath;
-    public const string TempPath = InMemoryFileSystem.DefaultTempPath;
+    public static readonly string RootPath = InMemoryFileSystem.DefaultRootPath;
+    public static readonly string TempPath = InMemoryFileSystem.DefaultTempPath;
 
     [Fact]
     public void Run_UsingLongOptionNames_SetsSettings()
@@ -145,13 +145,13 @@ public sealed class CleanupCommandTests
     public void Run_WithNoopAndAdditionalSkipFlags_StillBehavesAsNoop()
     {
         // Arrange
-        var binPath = $@"{RootPath}\projectA\bin";
+        var binPath = Root("projectA", "bin");
         var fileSystem = new InMemoryFileSystem(
             directories:
             [
                 RootPath,
                 TempPath,
-                $@"{RootPath}\projectA",
+                Root("projectA"),
                 binPath
             ]);
         var appTester = CreateAppTester(new AppTesterConfig(FileSystem: fileSystem));
@@ -241,8 +241,8 @@ public sealed class CleanupCommandTests
             [
                 RootPath,
                 TempPath,
-                $@"{RootPath}\projectA",
-                $@"{RootPath}\projectA\bin"
+                Root("projectA"),
+                Root("projectA", "bin")
             ]);
         var appTester = CreateAppTester(new AppTesterConfig(Console: testConsole, FileSystem: fileSystem));
 
@@ -274,8 +274,8 @@ public sealed class CleanupCommandTests
             [
                 RootPath,
                 TempPath,
-                $@"{RootPath}\projectA",
-                $@"{RootPath}\projectA\bin"
+                Root("projectA"),
+                Root("projectA", "bin")
             ]);
         var appTester = CreateAppTester(new AppTesterConfig(Console: testConsole, FileSystem: fileSystem));
 
@@ -308,13 +308,13 @@ public sealed class CleanupCommandTests
         bool expectSummaryMessage)
     {
         // Arrange
-        var binPath = $@"{RootPath}\projectA\bin";
+        var binPath = Root("projectA", "bin");
         var fileSystem = new InMemoryFileSystem(
             directories:
             [
                 RootPath,
                 TempPath,
-                $@"{RootPath}\projectA",
+                Root("projectA"),
                 binPath
             ]);
         var appTester = CreateAppTester(new AppTesterConfig(FileSystem: fileSystem));
@@ -391,8 +391,8 @@ public sealed class CleanupCommandTests
             [
                 RootPath,
                 TempPath,
-                $@"{RootPath}\projectA",
-                $@"{RootPath}\projectA\bin"
+                Root("projectA"),
+                Root("projectA", "bin")
             ]);
         var appTester = CreateAppTester(new AppTesterConfig(FileSystem: fileSystem));
 
@@ -421,8 +421,8 @@ public sealed class CleanupCommandTests
             [
                 RootPath,
                 TempPath,
-                $@"{RootPath}\projectA",
-                $@"{RootPath}\projectA\bin"
+                Root("projectA"),
+                Root("projectA", "bin")
             ]);
         var fileSystem = new DeleteFailsForMovedDirectoryFileSystem(innerFileSystem);
         var appTester = CreateAppTester(new AppTesterConfig(FileSystem: fileSystem));
@@ -435,11 +435,12 @@ public sealed class CleanupCommandTests
                 "-p", "**/bin",
                 "-y"
             ]);
+        var settings = Assert.IsType<CleanupSettings>(result.Settings);
         // Assert
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("Error deleting path:", result.Output, StringComparison.Ordinal);
-        Assert.Contains($@"{TempPath}\~dotnetcleanup-", result.Output, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain($@"Error deleting path: {RootPath}\projectA\bin", result.Output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(GetTempRunPrefix(settings), result.Output, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain($"Error deleting path: {Root("projectA", "bin")}", result.Output, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -468,8 +469,8 @@ public sealed class CleanupCommandTests
             [
                 RootPath,
                 TempPath,
-                $@"{RootPath}\projectA",
-                $@"{RootPath}\projectA\bin"
+                Root("projectA"),
+                Root("projectA", "bin")
             ]);
         var fileSystem = new MoveSourceDisappearsFileSystem(innerFileSystem);
         var appTester = CreateAppTester(new AppTesterConfig(FileSystem: fileSystem));
@@ -479,7 +480,7 @@ public sealed class CleanupCommandTests
 
         // Assert
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains($@"Error moving path: {RootPath}\projectA\bin", result.Output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains($"Error moving path: {Root("projectA", "bin")}", result.Output, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -491,19 +492,20 @@ public sealed class CleanupCommandTests
             [
                 RootPath,
                 TempPath,
-                $@"{RootPath}\projectA",
-                $@"{RootPath}\projectA\bin"
+                Root("projectA"),
+                Root("projectA", "bin")
             ]);
         var fileSystem = new DeleteTargetDisappearsFileSystem(innerFileSystem);
         var appTester = CreateAppTester(new AppTesterConfig(FileSystem: fileSystem));
 
         // Act
         var result = appTester.Run([RootPath, "--temp-path", TempPath, "-p", "**/bin", "-y"]);
+        var settings = Assert.IsType<CleanupSettings>(result.Settings);
 
         // Assert
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("Error deleting path:", result.Output, StringComparison.Ordinal);
-        Assert.Contains($@"{TempPath}\~dotnetcleanup-", result.Output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(GetTempRunPrefix(settings), result.Output, StringComparison.OrdinalIgnoreCase);
     }
 
     [Theory]
@@ -513,13 +515,13 @@ public sealed class CleanupCommandTests
     public void Run_NoopWithRedundantSkipFlags_BehavesLikeNoopAlone(params string[] extraFlags)
     {
         // Arrange (#18 - normalize ineffective option combinations)
-        var binPath = $@"{RootPath}\projectA\bin";
+        var binPath = Root("projectA", "bin");
         var fileSystem = new InMemoryFileSystem(
             directories:
             [
                 RootPath,
                 TempPath,
-                $@"{RootPath}\projectA",
+                Root("projectA"),
                 binPath
             ]);
         var appTester = CreateAppTester(new AppTesterConfig(FileSystem: fileSystem));
@@ -541,6 +543,10 @@ public sealed class CleanupCommandTests
         Assert.Contains("1 path found", result.Output, StringComparison.Ordinal);
         Assert.Contains(binPath, fileSystem.Directories, StringComparer.OrdinalIgnoreCase);
     }
+
+    private static string Root(params string[] segments) => TestPath.Root(segments);
+
+    private static string GetTempRunPrefix(CleanupSettings settings) => CleanupTempPath.GetRunDirectoryPrefix(TempPath, settings.StartedAt);
 
     private record AppTesterConfig(
         TestConsole? Console = null,

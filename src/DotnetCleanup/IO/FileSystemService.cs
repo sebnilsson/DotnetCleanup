@@ -94,9 +94,7 @@ public sealed class FileSystemService(IFileSystem fileSystem)
     {
         ArgumentNullException.ThrowIfNull(settings);
 
-        var path = Path.Combine(
-            settings.TempPath,
-            $"~dotnetcleanup-{settings.StartedAt:yyyyMMdd-HHmmss}-{Guid.CreateVersion7():N}");
+        var path = CleanupTempPath.CreateRunDirectoryPath(settings.TempPath, settings.StartedAt);
 
         _fileSystem.CreateDirectory(path);
 

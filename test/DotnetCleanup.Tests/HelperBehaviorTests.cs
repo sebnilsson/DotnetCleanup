@@ -1,5 +1,6 @@
 ﻿using DotnetCleanup.IO;
 using DotnetCleanup.Spectre;
+using DotnetCleanup.Testing.IO;
 using Xunit;
 
 namespace DotnetCleanup.Tests;
@@ -91,8 +92,8 @@ public sealed class HelperBehaviorTests
     {
         // Arrange
         var step = new CleanupStep();
-        var lowerCasePath = new PathInfo("folder/bin", isFile: false);
-        var upperCasePath = new PathInfo("FOLDER/BIN", isFile: false);
+        var lowerCasePath = new PathInfo(TestPath.Root("folder", "bin"), isFile: false);
+        var upperCasePath = new PathInfo(TestPath.Root("FOLDER", "BIN"), isFile: false);
 
         // Act
         var firstAddResult = step.AddSuccess(lowerCasePath);

@@ -7,8 +7,8 @@ namespace DotnetCleanup.Tests;
 
 public sealed class FileSystemServiceTests
 {
-    private const string RootPath = InMemoryFileSystem.DefaultRootPath;
-    private const string TempPath = InMemoryFileSystem.DefaultTempPath;
+    private static readonly string RootPath = InMemoryFileSystem.DefaultRootPath;
+    private static readonly string TempPath = InMemoryFileSystem.DefaultTempPath;
 
     [Fact]
     public void ValidateSettings_WhenIncludeIsEmpty_ThrowsArgumentOutOfRangeException()
@@ -29,16 +29,16 @@ public sealed class FileSystemServiceTests
     public void GetPaths_EnumeratesMatchingFilesAndDirectories()
     {
         // Arrange
-        var binPath = $@"{RootPath}\projectA\bin";
-        var logFilePath = $@"{RootPath}\projectA\artifacts\build.log";
+        var binPath = Root("projectA", "bin");
+        var logFilePath = Root("projectA", "artifacts", "build.log");
         var fileSystem = new InMemoryFileSystem(
             directories:
             [
                 RootPath,
                 TempPath,
-                $@"{RootPath}\projectA",
+                Root("projectA"),
                 binPath,
-                $@"{RootPath}\projectA\artifacts"
+                Root("projectA", "artifacts")
             ],
             files:
             [
@@ -62,8 +62,8 @@ public sealed class FileSystemServiceTests
     public void GetPaths_WhenFileEnumerationThrowsMidTraversal_ReturnsPartialMatchesAndFailure()
     {
         // Arrange
-        var firstLogPath = $@"{RootPath}\a-first.log";
-        var secondLogPath = $@"{RootPath}\b-second.log";
+        var firstLogPath = Root("a-first.log");
+        var secondLogPath = Root("b-second.log");
         var innerFileSystem = new InMemoryFileSystem(
             directories:
             [
@@ -97,16 +97,16 @@ public sealed class FileSystemServiceTests
     public void GetPaths_WhenDirectoryEnumerationThrowsMidTraversal_ReturnsPartialMatchesAndFailure()
     {
         // Arrange
-        var projectABinPath = $@"{RootPath}\projectA\bin";
-        var projectBBinPath = $@"{RootPath}\projectB\bin";
+        var projectABinPath = Root("projectA", "bin");
+        var projectBBinPath = Root("projectB", "bin");
         var innerFileSystem = new InMemoryFileSystem(
             directories:
             [
                 RootPath,
                 TempPath,
-                $@"{RootPath}\projectA",
+                Root("projectA"),
                 projectABinPath,
-                $@"{RootPath}\projectB",
+                Root("projectB"),
                 projectBBinPath
             ]);
         var fileSystem = new ThrowsDuringDirectoryEnumerationFileSystem(innerFileSystem, RootPath, new IOException("mid-traversal directory failure"));
@@ -131,15 +131,15 @@ public sealed class FileSystemServiceTests
     public void MovePath_BuildsTheExpectedTargetPathForFiles()
     {
         // Arrange
-        var sourceFilePath = $@"{RootPath}\projectA\artifacts\build.log";
-        var tempRunPath = $@"{TempPath}\~dotnetcleanup-test";
+        var sourceFilePath = Root("projectA", "artifacts", "build.log");
+        var tempRunPath = TempRunPath("test");
         var fileSystem = new InMemoryFileSystem(
             directories:
             [
                 RootPath,
                 TempPath,
-                $@"{RootPath}\projectA",
-                $@"{RootPath}\projectA\artifacts",
+                Root("projectA"),
+                Root("projectA", "artifacts"),
                 tempRunPath
             ],
             files:
@@ -152,7 +152,7 @@ public sealed class FileSystemServiceTests
 
         // Act
         var movedPath = service.MovePath(tempRunPath, path, settings);
-        var expectedMovePath = Path.Combine(tempRunPath, @"projectA\artifacts\build.log");
+        var expectedMovePath = CombinePath(tempRunPath, "projectA", "artifacts", "build.log");
 
         // Assert
         Assert.Same(path, movedPath);
@@ -165,17 +165,17 @@ public sealed class FileSystemServiceTests
     public void DeletePath_DeletesTheStagedPathWhenMovePathExists()
     {
         // Arrange
-        var originalPath = $@"{RootPath}\projectA\bin";
-        var stagedPath = $@"{TempPath}\~dotnetcleanup-test\projectA\bin";
+        var originalPath = Root("projectA", "bin");
+        var stagedPath = TempRunPath("test", "projectA", "bin");
         var fileSystem = new InMemoryFileSystem(
             directories:
             [
                 RootPath,
                 TempPath,
-                $@"{RootPath}\projectA",
+                Root("projectA"),
                 originalPath,
-                $@"{TempPath}\~dotnetcleanup-test",
-                $@"{TempPath}\~dotnetcleanup-test\projectA",
+                TempRunPath("test"),
+                TempRunPath("test", "projectA"),
                 stagedPath
             ]);
         var service = new FileSystemService(fileSystem);
@@ -205,8 +205,8 @@ public sealed class FileSystemServiceTests
 
         // Assert
         Assert.NotEqual(firstPath, secondPath);
-        Assert.StartsWith($@"{TempPath}\~dotnetcleanup-{settings.StartedAt:yyyyMMdd-HHmmss}-", firstPath, StringComparison.OrdinalIgnoreCase);
-        Assert.StartsWith($@"{TempPath}\~dotnetcleanup-{settings.StartedAt:yyyyMMdd-HHmmss}-", secondPath, StringComparison.OrdinalIgnoreCase);
+        Assert.StartsWith(GetTempRunPrefix(settings), firstPath, StringComparison.OrdinalIgnoreCase);
+        Assert.StartsWith(GetTempRunPrefix(settings), secondPath, StringComparison.OrdinalIgnoreCase);
         Assert.Contains(firstPath, fileSystem.Directories, StringComparer.OrdinalIgnoreCase);
         Assert.Contains(secondPath, fileSystem.Directories, StringComparer.OrdinalIgnoreCase);
     }
@@ -215,14 +215,14 @@ public sealed class FileSystemServiceTests
     public void MovePath_WhenDirectoryDisappears_ReportsPerPathFailure()
     {
         // Arrange (#23 - disappearing-path regression)
-        var binPath = $@"{RootPath}\projectA\bin";
-        var tempRunPath = $@"{TempPath}\~dotnetcleanup-test";
+        var binPath = Root("projectA", "bin");
+        var tempRunPath = TempRunPath("test");
         var fileSystem = new InMemoryFileSystem(
             directories:
             [
                 RootPath,
                 TempPath,
-                $@"{RootPath}\projectA",
+                Root("projectA"),
                 binPath,
                 tempRunPath
             ]);
@@ -245,14 +245,14 @@ public sealed class FileSystemServiceTests
     public void MovePath_WhenFileDisappears_ReportsPerPathFailure()
     {
         // Arrange (#23 - disappearing-path regression)
-        var filePath = $@"{RootPath}\projectA\build.log";
-        var tempRunPath = $@"{TempPath}\~dotnetcleanup-test";
+        var filePath = Root("projectA", "build.log");
+        var tempRunPath = TempRunPath("test");
         var fileSystem = new InMemoryFileSystem(
             directories:
             [
                 RootPath,
                 TempPath,
-                $@"{RootPath}\projectA",
+                Root("projectA"),
                 tempRunPath
             ],
             files: [filePath]);
@@ -275,17 +275,17 @@ public sealed class FileSystemServiceTests
     public void DeletePath_WhenStagedDirectoryDisappears_ReportsPerPathFailure()
     {
         // Arrange (#23 - disappearing-path regression)
-        var originalPath = $@"{RootPath}\projectA\bin";
-        var stagedPath = $@"{TempPath}\~dotnetcleanup-test\projectA\bin";
+        var originalPath = Root("projectA", "bin");
+        var stagedPath = TempRunPath("test", "projectA", "bin");
         var fileSystem = new InMemoryFileSystem(
             directories:
             [
                 RootPath,
                 TempPath,
-                $@"{RootPath}\projectA",
+                Root("projectA"),
                 originalPath,
-                $@"{TempPath}\~dotnetcleanup-test",
-                $@"{TempPath}\~dotnetcleanup-test\projectA",
+                TempRunPath("test"),
+                TempRunPath("test", "projectA"),
                 stagedPath
             ]);
         fileSystem.DeleteDirectoryExceptions.Add(stagedPath, new DirectoryNotFoundException("staged directory vanished"));
@@ -307,9 +307,9 @@ public sealed class FileSystemServiceTests
     public void GetPaths_WhenFileEnumerationFailsMidTraversal_ReportsPartialResultsAndFailure()
     {
         // Arrange (#24 - mid-traversal enumeration exception)
-        var projectAPath = $@"{RootPath}\projectA";
-        var projectABinPath = $@"{RootPath}\projectA\bin";
-        var projectBPath = $@"{RootPath}\projectB";
+        var projectAPath = Root("projectA");
+        var projectABinPath = Root("projectA", "bin");
+        var projectBPath = Root("projectB");
         var fileSystem = new InMemoryFileSystem(
             directories:
             [
@@ -338,9 +338,9 @@ public sealed class FileSystemServiceTests
     public void GetPaths_WhenDirectoryEnumerationFailsMidTraversal_ReportsPartialResultsAndFailure()
     {
         // Arrange (#24 - mid-traversal enumeration exception)
-        var projectAPath = $@"{RootPath}\projectA";
-        var projectABinPath = $@"{RootPath}\projectA\bin";
-        var projectBPath = $@"{RootPath}\projectB";
+        var projectAPath = Root("projectA");
+        var projectABinPath = Root("projectA", "bin");
+        var projectBPath = Root("projectB");
         var fileSystem = new InMemoryFileSystem(
             directories:
             [
@@ -375,6 +375,17 @@ public sealed class FileSystemServiceTests
             SkipConfirm = true
         };
     }
+
+    private static string Root(params string[] segments) => TestPath.Root(segments);
+
+    private static string CombinePath(string path, params string[] segments) => TestPath.Combine(path, segments);
+
+    private static string TempRunPath(string suffix, params string[] segments)
+    {
+        return CleanupTempPath.CreatePath(TempPath, $"{CleanupTempPath.DirectoryNamePrefix}-{suffix}", segments);
+    }
+
+    private static string GetTempRunPrefix(CleanupSettings settings) => CleanupTempPath.GetRunDirectoryPrefix(TempPath, settings.StartedAt);
 
     private sealed class ThrowsDuringFileEnumerationFileSystem(InMemoryFileSystem innerFileSystem, string failingPath, Exception exception) : DelegatingFileSystem(innerFileSystem)
     {

@@ -1,4 +1,5 @@
 ﻿using DotnetCleanup.IO;
+using DotnetCleanup.Testing.IO;
 using Xunit;
 
 namespace DotnetCleanup.Tests;
@@ -8,18 +9,29 @@ public sealed class PathInfoTests
     [Fact]
     public void Constructor_NormalizesPathValue()
     {
-        var path = new PathInfo(@"c:\root/project\bin", isFile: false);
+        // Arrange
+        var rawPath = $"{TestPath.RootPath}/project/bin";
 
-        Assert.Equal(PathUtility.GetNormalizedPath(@"c:\root/project\bin"), path.Value);
+        // Act
+        var path = new PathInfo(rawPath, isFile: false);
+
+        // Assert
+        Assert.Equal(PathUtility.GetNormalizedPath(rawPath), path.Value);
         Assert.Equal(path.Value, path.InitialValue);
     }
 
     [Fact]
     public void Constructor_SetsIsFileProperty()
     {
-        var file = new PathInfo(@"c:\root\file.txt", isFile: true);
-        var directory = new PathInfo(@"c:\root\folder", isFile: false);
+        // Arrange
+        var filePath = TestPath.Root("file.txt");
+        var directoryPath = TestPath.Root("folder");
 
+        // Act
+        var file = new PathInfo(filePath, isFile: true);
+        var directory = new PathInfo(directoryPath, isFile: false);
+
+        // Assert
         Assert.True(file.IsFile);
         Assert.False(directory.IsFile);
     }
@@ -30,33 +42,45 @@ public sealed class PathInfoTests
     [InlineData("   ")]
     public void Constructor_ThrowsOnNullOrWhiteSpacePath(string? value)
     {
+        // Act / Assert
         Assert.ThrowsAny<ArgumentException>(() => new PathInfo(value!, isFile: false));
     }
 
     [Fact]
     public void Raw_PreservesOriginalInput()
     {
-        var path = new PathInfo(@"c:/root/project/bin", isFile: false);
+        // Arrange
+        var rawPath = $"{TestPath.RootPath}/project/bin";
 
-        Assert.Equal(@"c:/root/project/bin", path.Raw);
+        // Act
+        var path = new PathInfo(rawPath, isFile: false);
+
+        // Assert
+        Assert.Equal(rawPath, path.Raw);
     }
 
     [Fact]
     public void Parent_ReturnsParentDirectory()
     {
-        var path = new PathInfo(@"c:\root\project\bin", isFile: false);
+        // Arrange
+        var path = new PathInfo(TestPath.Root("project", "bin"), isFile: false);
 
+        // Act / Assert
         Assert.Equal(PathUtility.GetParentPath(path.Value), path.Parent);
     }
 
     [Fact]
     public void SetMovePath_SetsNormalizedMovePath()
     {
-        var path = new PathInfo(@"c:\root\bin", isFile: false);
+        // Arrange
+        var path = new PathInfo(TestPath.Root("bin"), isFile: false);
+        var movePath = CleanupTempPath.CreatePath(TestPath.TempPath, CleanupTempPath.DirectoryNamePrefix, "bin");
 
-        path.SetMovePath(@"c:\temp/~dotnetcleanup/bin");
+        // Act
+        path.SetMovePath(movePath);
 
-        Assert.Equal(PathUtility.GetNormalizedPath(@"c:\temp/~dotnetcleanup/bin"), path.MovePath);
+        // Assert
+        Assert.Equal(PathUtility.GetNormalizedPath(movePath), path.MovePath);
     }
 
     [Theory]
@@ -65,19 +89,24 @@ public sealed class PathInfoTests
     [InlineData("   ")]
     public void SetMovePath_ThrowsOnNullOrWhiteSpaceValue(string? value)
     {
-        var path = new PathInfo(@"c:\root\bin", isFile: false);
+        // Arrange
+        var path = new PathInfo(TestPath.Root("bin"), isFile: false);
 
+        // Act / Assert
         Assert.ThrowsAny<ArgumentException>(() => path.SetMovePath(value!));
     }
 
     [Fact]
     public void SetFailedOnList_SetsExceptionAndFailedStage()
     {
-        var path = new PathInfo(@"c:\root\bin", isFile: false);
+        // Arrange
+        var path = new PathInfo(TestPath.Root("bin"), isFile: false);
         var exception = new IOException("access denied");
 
+        // Act
         path.SetFailedOnList(exception);
 
+        // Assert
         Assert.Same(exception, path.Exception);
         Assert.Equal(PathFailureStage.List, path.FailedOn);
     }
@@ -85,11 +114,14 @@ public sealed class PathInfoTests
     [Fact]
     public void SetFailedOnMove_SetsExceptionAndFailedStage()
     {
-        var path = new PathInfo(@"c:\root\bin", isFile: false);
+        // Arrange
+        var path = new PathInfo(TestPath.Root("bin"), isFile: false);
         var exception = new IOException("move failed");
 
+        // Act
         path.SetFailedOnMove(exception);
 
+        // Assert
         Assert.Same(exception, path.Exception);
         Assert.Equal(PathFailureStage.Move, path.FailedOn);
     }
@@ -97,11 +129,14 @@ public sealed class PathInfoTests
     [Fact]
     public void SetFailedOnDelete_SetsExceptionAndFailedStage()
     {
-        var path = new PathInfo(@"c:\root\bin", isFile: false);
+        // Arrange
+        var path = new PathInfo(TestPath.Root("bin"), isFile: false);
         var exception = new IOException("delete failed");
 
+        // Act
         path.SetFailedOnDelete(exception);
 
+        // Assert
         Assert.Same(exception, path.Exception);
         Assert.Equal(PathFailureStage.Delete, path.FailedOn);
     }
@@ -109,16 +144,20 @@ public sealed class PathInfoTests
     [Fact]
     public void SetFailedOnList_ThrowsOnNullException()
     {
-        var path = new PathInfo(@"c:\root\bin", isFile: false);
+        // Arrange
+        var path = new PathInfo(TestPath.Root("bin"), isFile: false);
 
+        // Act / Assert
         Assert.Throws<ArgumentNullException>(() => path.SetFailedOnList(null!));
     }
 
     [Fact]
     public void NewPathInfo_HasNoExceptionOrFailedStage()
     {
-        var path = new PathInfo(@"c:\root\bin", isFile: false);
+        // Arrange
+        var path = new PathInfo(TestPath.Root("bin"), isFile: false);
 
+        // Assert
         Assert.Null(path.Exception);
         Assert.Null(path.FailedOn);
         Assert.Equal(string.Empty, path.MovePath);

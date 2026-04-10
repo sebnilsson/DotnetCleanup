@@ -19,7 +19,7 @@ If temp run directory naming or composition is involved, use `src/DotnetCleanup/
 After code changes:
 - Ensure edited text files still use `CRLF`
 - Run `dotnet format`
-- Run `dotnet test --no-restore`
+- Run `dotnet test -c Release -v minimal --no-restore`
 
 After any meaningful behavior change:
 - Update relevant documentation

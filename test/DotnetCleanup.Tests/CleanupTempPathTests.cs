@@ -1,4 +1,4 @@
-﻿using DotnetCleanup.IO;
+using DotnetCleanup.IO;
 using DotnetCleanup.Testing.IO;
 using Xunit;
 
@@ -6,12 +6,18 @@ namespace DotnetCleanup.Tests;
 
 public sealed class CleanupTempPathTests
 {
-    [Fact]
-    public void CreatePath_AppendsDirectoryNameAndRelativeSegments()
-    {
-        // Arrange
-        var tempPath = TestPath.TempPath;
+    public static TheoryData<string> TempPathScenarios =>
+        new()
+        {
+            { @"C:\temp\dotnetcleanup" },
+            { "/tmp/dotnetcleanup" },
+            { "/private/tmp/dotnetcleanup" }
+        };
 
+    [Theory]
+    [MemberData(nameof(TempPathScenarios))]
+    public void CreatePath_AppendsDirectoryNameAndRelativeSegmentsForRepresentativePlatformPaths(string tempPath)
+    {
         // Act
         var path = CleanupTempPath.CreatePath(
             tempPath,
@@ -20,7 +26,9 @@ public sealed class CleanupTempPathTests
             "bin");
 
         // Assert
-        Assert.Equal(TestPath.Combine(tempPath, $"{CleanupTempPath.DirectoryNamePrefix}-test", "projectA", "bin"), path);
+        Assert.Equal(
+            PathUtility.GetNormalizedPath(Path.Combine(tempPath, $"{CleanupTempPath.DirectoryNamePrefix}-test", "projectA", "bin")),
+            path);
     }
 
     [Fact]

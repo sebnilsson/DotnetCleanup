@@ -1,4 +1,4 @@
-using DotnetCleanup.Cli;
+﻿using DotnetCleanup.Cli;
 using DotnetCleanup.IO;
 using DotnetCleanup.Testing.IO;
 using Xunit;

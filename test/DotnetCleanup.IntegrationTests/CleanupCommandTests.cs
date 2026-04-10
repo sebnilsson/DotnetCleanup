@@ -1,4 +1,4 @@
-using DotnetCleanup.Cli;
+﻿using DotnetCleanup.Cli;
 using DotnetCleanup.IO;
 using DotnetCleanup.Spectre;
 using DotnetCleanup.Testing.IO;
@@ -263,7 +263,7 @@ public sealed class CleanupCommandTests
     }
 
     [Fact]
-    public void Run_WhenConfirmationRejected_ShowsCanceledAndListSummary()
+    public void Run_WhenConfirmationRejected_DoesNotShowCompletionSummary()
     {
         // Arrange
         var testConsole = new TestConsole();
@@ -275,7 +275,8 @@ public sealed class CleanupCommandTests
                 RootPath,
                 TempPath,
                 Root("projectA"),
-                Root("projectA", "bin")
+                Root("projectA", "bin"),
+                Root("projectA", "obj")
             ]);
         var appTester = CreateAppTester(new AppTesterConfig(Console: testConsole, FileSystem: fileSystem));
 
@@ -283,16 +284,16 @@ public sealed class CleanupCommandTests
         var result = appTester.Run(
             [
                 RootPath,
-                "--temp-path", TempPath,
-                "-p", "**/bin"
+                "--temp-path", TempPath
             ]);
 
         // Assert
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("Proceed with the cleanup?", result.Output, StringComparison.Ordinal);
         Assert.Contains("Cleanup canceled by user", result.Output, StringComparison.Ordinal);
-        Assert.Contains("1 path found", result.Output, StringComparison.Ordinal);
-        Assert.Contains("1 succeeded.", result.Output, StringComparison.Ordinal);
+        Assert.Contains("2 paths found", result.Output, StringComparison.Ordinal);
+        Assert.DoesNotContain("Cleanup process completed.", result.Output, StringComparison.Ordinal);
+        Assert.DoesNotContain("succeeded.", result.Output, StringComparison.Ordinal);
     }
 
     [Theory]

@@ -17,9 +17,17 @@ public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
 
         AttachEventHandlers(settings);
 
-        var result = _service.Cleanup(() => ConfirmCleanup(settings), settings, cancellationToken);
+        var isConfirmed = false;
+        var result = _service.Cleanup(() =>
+        {
+            isConfirmed = ConfirmCleanup(settings);
+            return isConfirmed;
+        }, settings, cancellationToken);
 
-        WriteCompletion(result, settings);
+        if (isConfirmed)
+        {
+            WriteCompletion(result, settings);
+        }
 
         return 0;
     }
@@ -56,7 +64,6 @@ public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
         };
 
         _service.OnListPathsStepDone += step => WriteListStepCompleted(settings, step);
-
         _service.OnMovePathsStepDone += step => WriteStepCompleted(settings, settings.ShouldSkipMove(), step, "Move", "blue");
         _service.OnDeletePathsStepDone += step => WriteStepCompleted(settings, settings.ShouldSkipDelete(), step, "Delete", "blue");
 

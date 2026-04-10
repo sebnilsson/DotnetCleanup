@@ -1,44 +1,26 @@
 # Repository Guidelines
 
-## Project Structure & Module Organization
-The CLI tool lives in `src/DotnetCleanup/` (command entry point, services, events, and utilities). Tests are in `test/DotnetCleanup.Tests/`. Solutions are `DotnetCleanup.sln` and `DotnetCleanup.slnx`. Tool packages are produced under `src/DotnetCleanup/nupkg/` when packing.
+## Keep This File Durable
+Only keep guidance here that is repo-specific, easy to miss, or expensive to rediscover from the codebase. Avoid repeating file inventories, command lists, version numbers, or architecture summaries that can drift over time.
 
-## Build, Test, and Development Commands
-- `dotnet restore` - restore NuGet packages for the solution.
-- `dotnet build DotnetCleanup.slnx` - build all projects.
-- `dotnet test DotnetCleanup.slnx` - run xUnit tests.
-- `dotnet run --project src/DotnetCleanup -- --help` - run the CLI locally; pass tool arguments after `--`.
-- `dotnet pack src/DotnetCleanup/DotnetCleanup.csproj` - create the tool package (outputs to `src/DotnetCleanup/nupkg/`).
+## Coding Conventions
+Follow `.editorconfig` and treat it as the formatting source of truth. Preserve existing Windows line endings (`CRLF`) in edited text files to avoid Visual Studio line-ending churn.
 
-## Main Flow
-- `src/DotnetCleanup/Program.cs` wires Spectre.Console, registers `IFileSystem`, and runs `CleanupCommand`.
-- `src/DotnetCleanup/Cli/CleanupCommand.cs` is the application layer; binds CLI settings, subscribes to `CleanupService` events, prompts for confirmation, and renders output.
-- `src/DotnetCleanup/CleanupService.cs` is the entry point for the domain layer; validates settings, lists paths, confirms, ensures temp dir, moves, deletes, returns `CleanupResult`, and keeps a single `PathInfo` instance per path through all steps.
-- `src/DotnetCleanup/IO/FileSystemService.cs` performs glob matching + traversal and the move/delete operations using `IFileSystem`.
-- `src/DotnetCleanup/IO/CleanupTempPath.cs` is the single place that defines the temp run directory naming scheme (`~dotnetcleanup-...`) and path composition.
-- `src/DotnetCleanup/CleanupSettings.cs` defines options; `src/DotnetCleanup/CleanupStep.cs`, `src/DotnetCleanup/CleanupResult.cs`, and `src/DotnetCleanup/PathInfo.cs` capture per-step results (`Successes` and `Failed`) and track failure stage metadata (`List`, `Move`, `Delete`) on each `PathInfo`.
+Prefer `var`, keep `System` using directives first, and keep file/class names aligned. Nullable reference types are enabled, so handle nulls explicitly.
 
-## Coding Style & Naming Conventions
-Follow `.editorconfig`: spaces only, 4-space indentation for C# (UTF-8 BOM), and 2-space indentation for JSON/XML/PS. Use `SpellingExclusions.dic` for accepted terms. Keep `System` using directives first and do not separate using groups. Avoid multiple blank lines and embedded statements on the same line; keep braces around blocks. Nullable reference types are enabled; handle nulls explicitly. Prefer `var`. Naming rules include PascalCase for public members, `s_` prefix for static fields, and `_` prefix for instance fields. Formatting and unused-parameter diagnostics are treated as warnings (e.g., IDE0055, IDE0060). Keep file and class names aligned.
-Preserve Windows line endings (`CRLF`) for existing text files and do not normalize edited files to `LF`, to avoid Visual Studio "Inconsistent Line Endings" prompts.
+## Tests
+Keep tests deterministic and match the existing xUnit style. Use explicit `// Arrange`, `// Act`, and `// Assert` comments in each test method.
 
-## Testing Guidelines
-Tests use xUnit in `test/DotnetCleanup.Tests/`. Add tests alongside new behavior and keep them deterministic. Use descriptive test class and method names; follow existing patterns in the test project. Use explicit `// Arrange`, `// Act`, and `// Assert` comments in each test method to separate phases. Run tests with `dotnet test DotnetCleanup.sln` before submitting changes.
-For path-oriented tests, prefer `test/DotnetCleanup.Testing/IO/TestPath.cs` helpers over hardcoded drive letters or `\` separators so assertions stay stable on both Windows and Linux.
+For path-oriented tests, prefer `test/DotnetCleanup.Testing/IO/TestPath.cs` helpers over hardcoded drive letters or path separators so the suite stays stable across Windows and Linux.
 
-## Commit & Pull Request Guidelines
-Commit messages in this repo are short and descriptive, often sentence-case or version-prefixed (e.g., `0.6.1: Roll Forward support`, `dotnet format`). Keep messages focused on a single change. For pull requests, include a brief summary, link related issues, and note the test command you ran (or why tests were not run). Update README or version metadata if the tool's behavior or packaging changes.
+If temp run directory naming or composition is involved, use `src/DotnetCleanup/IO/CleanupTempPath.cs` instead of rebuilding `~dotnetcleanup` paths inline.
 
-## Tooling & Configuration Notes
-The repository targets `net9.0` and `net10.0`.
-The repository currently includes `DotnetCleanup.slnx` as the top-level solution file.
+## Change Checklist
+After code changes:
+- Ensure edited text files still use `CRLF`
+- Run `dotnet format`
+- Run `dotnet test --no-restore`
 
-## Post change checklist
-After any changes to code files, follow this checklist:
-- Ensure files changed use CRLF line ending
-- Run `dotnet format` to ensure consistent code style
-- Run `dotnet test --no-restore` to verify build is working and tests are passing
-
-After any changes to any files, follow this checklist:
+After any meaningful behavior change:
 - Update relevant documentation
-- If new insights are made, add it to the AGENTS.md file for future reference. Only do this for non-one-off cases.
+- Add lasting, non-obvious repo guidance here if you learned something future agents would otherwise have to rediscover

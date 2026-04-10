@@ -10,8 +10,11 @@ public sealed class CleanupTempPathTests
         new()
         {
             { @"C:\temp\dotnetcleanup" },
+            { @"C:/temp\dotnetcleanup" },
             { "/tmp/dotnetcleanup" },
-            { "/private/tmp/dotnetcleanup" }
+            { "/tmp\\dotnetcleanup" },
+            { "/private/tmp/dotnetcleanup" },
+            { "/private/tmp\\dotnetcleanup" }
         };
 
     [Theory]

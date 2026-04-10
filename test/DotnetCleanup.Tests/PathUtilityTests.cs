@@ -10,24 +10,33 @@ public sealed class PathUtilityTests
         new()
         {
             { @"C:\repo\project/bin\", @"C:\repo\project\bin" },
+            { @"C:\repo/project\bin/", @"C:\repo\project\bin" },
             { "/home/alice/repo/project/bin/", "/home/alice/repo/project/bin" },
+            { "/home/alice\\repo/project\\bin/", "/home/alice/repo/project/bin" },
             { "/Users/alice/repo/project/bin/", "/Users/alice/repo/project/bin" }
+            ,{ "/Users/alice\\repo/project\\bin/", "/Users/alice/repo/project/bin" }
         };
 
     public static TheoryData<string, string> ParentPathScenarios =>
         new()
         {
             { @"C:\repo\project\bin\", @"C:\repo\project" },
+            { @"C:\repo/project\bin/", @"C:\repo\project" },
             { "/home/alice/repo/project/bin/", "/home/alice/repo/project" },
+            { "/home/alice\\repo/project\\bin/", "/home/alice/repo/project" },
             { "/Users/alice/repo/project/bin/", "/Users/alice/repo/project" }
+            ,{ "/Users/alice\\repo/project\\bin/", "/Users/alice/repo/project" }
         };
 
     public static TheoryData<string, string, string> RelativePathScenarios =>
         new()
         {
             { @"C:\repo", @"C:\repo\project\bin", "project/bin" },
+            { @"C:/repo", @"C:\repo/project\bin", "project/bin" },
             { "/home/alice/repo", "/home/alice/repo/project/bin", "project/bin" },
+            { "/home/alice\\repo", "/home/alice/repo\\project/bin", "project/bin" },
             { "/Users/alice/repo", "/Users/alice/repo/project/bin", "project/bin" }
+            ,{ "/Users/alice\\repo", "/Users/alice/repo\\project/bin", "project/bin" }
         };
 
     [Theory]

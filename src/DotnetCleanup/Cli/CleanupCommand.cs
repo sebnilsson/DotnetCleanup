@@ -36,30 +36,30 @@ public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
     {
         _service.OnListPathsStepStart += () =>
         {
-            WriteVerbosityDetailed(settings, ":magnifying_glass_tilted_right: Listing paths...");
+            WriteTitle(settings, ":magnifying_glass_tilted_right: Finding paths...");
         };
 
         _service.OnMovePathsStepStart += () =>
         {
-            if (settings.ShouldSkipMove())
+            if (!settings.ShouldSkipMove())
             {
-                WriteVerbosityNormal(settings, "[cyan]Skipping moving paths[/]");
+                WriteTitle(settings, ":open_file_folder: Moving paths...");
             }
             else
             {
-                WriteVerbosityDetailed(settings, ":open_file_folder: Moving paths...");
+                WriteVerbosityNormal(settings, "[cyan]Skipping moving paths[/]");
             }
         };
 
         _service.OnDeletePathsStepStart += () =>
         {
-            if (settings.ShouldSkipDelete())
+            if (!settings.ShouldSkipDelete())
             {
-                WriteVerbosityNormal(settings, "[cyan]Skipping deleting paths[/]");
+                WriteTitle(settings, ":cross_mark: Deleting paths...");
             }
             else
             {
-                WriteVerbosityDetailed(settings, ":cross_mark: Deleting paths...");
+                WriteVerbosityNormal(settings, "[cyan]Skipping deleting paths[/]");
             }
         };
 
@@ -67,7 +67,7 @@ public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
         _service.OnMovePathsStepDone += step => WriteStepCompleted(settings, settings.ShouldSkipMove(), step, "Move", "blue");
         _service.OnDeletePathsStepDone += step => WriteStepCompleted(settings, settings.ShouldSkipDelete(), step, "Delete", "blue");
 
-        _service.OnListPath += path => WriteOnPath(settings, path, "gray", "Error listing path");
+        _service.OnListPath += path => WriteOnPath(settings, path, "gray", "Error listing path", verbosityLevel: VerbosityLevel.Normal);
         _service.OnMovePath += path => WriteOnPath(settings, path, "cyan", "Error moving path");
         _service.OnDeletePath += path => WriteOnPath(settings, path, "Purple_1", "Error deleting path", useMovePathForFailure: true);
     }
@@ -88,6 +88,17 @@ public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
         return isConfirmed;
     }
 
+    private void WriteTitle(CleanupSettings settings, string title)
+    {
+        if (settings.IsVerbosityNormal())
+        {
+            _console.Write(new Rule(title)
+            {
+                Border = BoxBorder.Ascii
+            });
+        }
+    }
+
     private void WriteCompletion(CleanupResult result, CleanupSettings settings)
     {
         _console.MarkupLine("[green]:check_mark:  Cleanup process completed.[/]");
@@ -98,26 +109,23 @@ public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
         }
     }
 
-    private void WriteOnPath(CleanupSettings settings, PathInfo path, string color, string errorText, bool useMovePathForFailure = false)
+    private void WriteOnPath(CleanupSettings settings, PathInfo path, string color, string errorText, VerbosityLevel verbosityLevel = VerbosityLevel.Detailed, bool useMovePathForFailure = false)
     {
         lock (s_consoleWriteLock)
         {
-            if (path.Exception == null)
+            if (path.Exception != null && settings.IsVerbosityNormal())
             {
-                if (settings.IsVerbosityDetailed())
-                {
-                    _console.MarkupLine($"[{color}]{path.Value}[/]");
-                }
+                var displayPath = useMovePathForFailure && !string.IsNullOrWhiteSpace(path.MovePath)
+                    ? path.MovePath
+                    : path.Value;
 
-                return;
+                _console.Markup($"[red]{errorText}: {displayPath}[/] -- ");
+                _console.WriteException(path.Exception, ExceptionFormats.NoStackTrace);
             }
-
-            var displayPath = useMovePathForFailure && !string.IsNullOrWhiteSpace(path.MovePath)
-                ? path.MovePath
-                : path.Value;
-
-            _console.MarkupLine($"[red]{errorText}: {displayPath}[/]");
-            _console.WriteException(path.Exception, ExceptionFormats.NoStackTrace);
+            else if (settings.IsVerbosity(verbosityLevel))
+            {
+                _console.MarkupLine($"[{color}]{path.Value}[/]");
+            }
         }
     }
 

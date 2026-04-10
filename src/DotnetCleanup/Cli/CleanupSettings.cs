@@ -80,9 +80,11 @@ public sealed partial class CleanupSettings : CommandSettings
         Detailed,
     }
 
-    public bool IsVerbosityNormal() => Verbosity >= VerbosityLevel.Normal;
+    public bool IsVerbosityNormal() => IsVerbosity(VerbosityLevel.Normal);
 
-    public bool IsVerbosityDetailed() => Verbosity >= VerbosityLevel.Detailed;
+    public bool IsVerbosityDetailed() => IsVerbosity(VerbosityLevel.Detailed);
+
+    public bool IsVerbosity(VerbosityLevel verbosityLevel) => Verbosity >= verbosityLevel;
 
     public bool ShouldSkipMove() => Noop || SkipMove;
 

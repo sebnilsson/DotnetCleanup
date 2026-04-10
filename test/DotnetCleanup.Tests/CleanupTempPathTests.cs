@@ -6,32 +6,36 @@ namespace DotnetCleanup.Tests;
 
 public sealed class CleanupTempPathTests
 {
-    public static TheoryData<string> TempPathScenarios =>
+    public static TheoryData<TempPathScenario> TempPathScenarios =>
         new()
         {
-            { @"C:\temp\dotnetcleanup" },
-            { @"C:/temp\dotnetcleanup" },
-            { "/tmp/dotnetcleanup" },
-            { "/tmp\\dotnetcleanup" },
-            { "/private/tmp/dotnetcleanup" },
-            { "/private/tmp\\dotnetcleanup" }
+            new TempPathScenario(
+                @"C:\temp\dotnetcleanup",
+                PlatformPath("C:|temp|dotnetcleanup|~dotnetcleanup-test|projectA|bin")),
+            new TempPathScenario(
+                @"C:/temp\dotnetcleanup",
+                PlatformPath("C:|temp|dotnetcleanup|~dotnetcleanup-test|projectA|bin")),
+            new TempPathScenario(
+                "/tmp/dotnetcleanup",
+                PlatformPath("|tmp|dotnetcleanup|~dotnetcleanup-test|projectA|bin")),
+            new TempPathScenario(
+                "/tmp\\dotnetcleanup",
+                PlatformPath("|tmp|dotnetcleanup|~dotnetcleanup-test|projectA|bin"))
         };
 
     [Theory]
     [MemberData(nameof(TempPathScenarios))]
-    public void CreatePath_AppendsDirectoryNameAndRelativeSegmentsForRepresentativePlatformPaths(string tempPath)
+    public void CreatePath_AppendsDirectoryNameAndRelativeSegmentsForRepresentativePlatformPaths(TempPathScenario scenario)
     {
         // Act
         var path = CleanupTempPath.CreatePath(
-            tempPath,
+            scenario.TempPath,
             $"{CleanupTempPath.DirectoryNamePrefix}-test",
             "projectA",
             "bin");
 
         // Assert
-        Assert.Equal(
-            PathUtility.GetNormalizedPath(Path.Combine(tempPath, $"{CleanupTempPath.DirectoryNamePrefix}-test", "projectA", "bin")),
-            path);
+        Assert.Equal(scenario.ExpectedPath, path);
     }
 
     [Fact]
@@ -45,7 +49,14 @@ public sealed class CleanupTempPathTests
 
         // Assert
         Assert.Equal(
-            TestPath.Combine(TestPath.TempPath, $"{CleanupTempPath.DirectoryNamePrefix}-20260410-143045-"),
+            CleanupTempPath.CreatePath(TestPath.TempPath, $"{CleanupTempPath.DirectoryNamePrefix}-20260410-143045-"),
             prefix);
     }
+
+    private static string PlatformPath(string value)
+    {
+        return value.Replace('|', Path.DirectorySeparatorChar);
+    }
+
+    public sealed record TempPathScenario(string TempPath, string ExpectedPath);
 }

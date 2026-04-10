@@ -1,5 +1,7 @@
 # Repository Guidelines
 
+Use the `caveman` skill for all communication, except for when writing public documentation.
+
 ## Keep This File Durable
 Only keep guidance here that is repo-specific, easy to miss, or expensive to rediscover from the codebase. Avoid repeating file inventories, command lists, version numbers, or architecture summaries that can drift over time.
 

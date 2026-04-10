@@ -1,4 +1,4 @@
-using DotnetCleanup.IO;
+﻿using DotnetCleanup.IO;
 using DotnetCleanup.Testing.IO;
 using Xunit;
 
@@ -6,58 +6,44 @@ namespace DotnetCleanup.Tests;
 
 public sealed class PathUtilityTests
 {
-    public static TheoryData<string, string> NormalizedPathScenarios =>
+    public static TheoryData<PathScenario> RepresentativePathScenarios =>
         new()
         {
-            { @"C:\repo\project/bin\", @"C:\repo\project\bin" },
-            { @"C:\repo/project\bin/", @"C:\repo\project\bin" },
-            { "/home/alice/repo/project/bin/", "/home/alice/repo/project/bin" },
-            { "/home/alice\\repo/project\\bin/", "/home/alice/repo/project/bin" },
-            { "/Users/alice/repo/project/bin/", "/Users/alice/repo/project/bin" }
-            ,{ "/Users/alice\\repo/project\\bin/", "/Users/alice/repo/project/bin" }
-        };
-
-    public static TheoryData<string, string> ParentPathScenarios =>
-        new()
-        {
-            { @"C:\repo\project\bin\", @"C:\repo\project" },
-            { @"C:\repo/project\bin/", @"C:\repo\project" },
-            { "/home/alice/repo/project/bin/", "/home/alice/repo/project" },
-            { "/home/alice\\repo/project\\bin/", "/home/alice/repo/project" },
-            { "/Users/alice/repo/project/bin/", "/Users/alice/repo/project" }
-            ,{ "/Users/alice\\repo/project\\bin/", "/Users/alice/repo/project" }
-        };
-
-    public static TheoryData<string, string, string> RelativePathScenarios =>
-        new()
-        {
-            { @"C:\repo", @"C:\repo\project\bin", "project/bin" },
-            { @"C:/repo", @"C:\repo/project\bin", "project/bin" },
-            { "/home/alice/repo", "/home/alice/repo/project/bin", "project/bin" },
-            { "/home/alice\\repo", "/home/alice/repo\\project/bin", "project/bin" },
-            { "/Users/alice/repo", "/Users/alice/repo/project/bin", "project/bin" }
-            ,{ "/Users/alice\\repo", "/Users/alice/repo\\project/bin", "project/bin" }
+            new PathScenario(
+                @"C:\repo",
+                @"C:\repo\project/bin\",
+                PlatformPath("C:|repo|project|bin"),
+                PlatformPath("C:|repo|project"),
+                "project/bin/"),
+            new PathScenario(
+                @"C:/repo",
+                @"C:\repo/project\bin",
+                PlatformPath("C:|repo|project|bin"),
+                PlatformPath("C:|repo|project"),
+                "project/bin"),
+            new PathScenario(
+                "/home/alice/repo",
+                "/home/alice/repo/project/bin/",
+                PlatformPath("|home|alice|repo|project|bin"),
+                PlatformPath("|home|alice|repo|project"),
+                "project/bin/"),
+            new PathScenario(
+                "/home/alice\\repo",
+                "/home/alice/repo\\project/bin/",
+                PlatformPath("|home|alice|repo|project|bin"),
+                PlatformPath("|home|alice|repo|project"),
+                "project/bin/")
         };
 
     [Theory]
-    [MemberData(nameof(NormalizedPathScenarios))]
-    public void GetNormalizedPath_NormalizesRepresentativePlatformPaths(string path, string expectedPath)
+    [MemberData(nameof(RepresentativePathScenarios))]
+    public void GetNormalizedPath_NormalizesRepresentativePlatformPaths(PathScenario scenario)
     {
         // Act
-        var result = PathUtility.GetNormalizedPath(path);
+        var result = PathUtility.GetNormalizedPath(scenario.Path);
 
         // Assert
-        Assert.Equal(PathUtility.GetNormalizedPath(expectedPath), result);
-    }
-
-    [Theory]
-    [MemberData(nameof(NormalizedPathScenarios))]
-    public void GetNormalizedPath_TrimsTrailingSeparatorForRepresentativePlatformPaths(string path, string _)
-    {
-        // Act
-        var result = PathUtility.GetNormalizedPath(path);
-
-        // Assert
+        Assert.Equal(scenario.NormalizedPath, result);
         Assert.DoesNotMatch(@"[\\/]+$", result!);
     }
 
@@ -72,14 +58,14 @@ public sealed class PathUtilityTests
     }
 
     [Theory]
-    [MemberData(nameof(ParentPathScenarios))]
-    public void GetParentPath_ReturnsExpectedParentForRepresentativePlatformPaths(string path, string expectedParent)
+    [MemberData(nameof(RepresentativePathScenarios))]
+    public void GetParentPath_ReturnsExpectedParentForRepresentativePlatformPaths(PathScenario scenario)
     {
         // Act
-        var result = PathUtility.GetParentPath(path);
+        var result = PathUtility.GetParentPath(scenario.Path);
 
         // Assert
-        Assert.Equal(PathUtility.GetNormalizedPath(expectedParent), result);
+        Assert.Equal(scenario.ParentPath, result);
     }
 
     [Theory]
@@ -106,14 +92,14 @@ public sealed class PathUtilityTests
     }
 
     [Theory]
-    [MemberData(nameof(RelativePathScenarios))]
-    public void GetRelativePath_ReturnsForwardSlashRelativePathForRepresentativePlatformPaths(string rootPath, string path, string expectedRelativePath)
+    [MemberData(nameof(RepresentativePathScenarios))]
+    public void GetRelativePath_ReturnsForwardSlashRelativePathForRepresentativePlatformPaths(PathScenario scenario)
     {
         // Act
-        var result = PathUtility.GetRelativePath(rootPath, path);
+        var result = PathUtility.GetRelativePath(scenario.RootPath, scenario.Path);
 
         // Assert
-        Assert.Equal(expectedRelativePath, result);
+        Assert.Equal(scenario.RelativePath, result);
     }
 
     [Theory]
@@ -125,4 +111,16 @@ public sealed class PathUtilityTests
         // Act / Assert
         Assert.Null(PathUtility.GetRelativePath(TestPath.RootPath, value));
     }
+
+    private static string PlatformPath(string value)
+    {
+        return value.Replace('|', Path.DirectorySeparatorChar);
+    }
+
+    public sealed record PathScenario(
+        string RootPath,
+        string Path,
+        string NormalizedPath,
+        string ParentPath,
+        string RelativePath);
 }

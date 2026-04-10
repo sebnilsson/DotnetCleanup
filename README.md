@@ -23,21 +23,24 @@ USAGE:
     dotnet-cleanup [PATH] [OPTIONS]
 
 EXAMPLES:
-    dotnet-cleanup c:\src\project --include **/bin --include **/obj --include **/node_modules --exclude samples/**
+    dotnet-cleanup c:\src\project --include **/bin --include **/obj --include **/node_modules --exclude README.md
     dotnet-cleanup -p **/bin -p **/obj -y
     dotnet-cleanup -p **/node_modules --verbosity minimal
 
 ARGUMENTS:
-    [PATH]    The starting path for the cleanup
+    [PATH]    The starting path for the cleanup. Defaults to current directory
 
 OPTIONS:
     -h, --help                  Prints help information
     -p, --include <PATTERNS>    Glob paths to include in cleanup. Default paths: **/bin, **/obj, **/node_modules
     -x, --exclude <PATTERNS>    Glob paths to exclude from cleanup
     -y, --yes                   Run cleanup skipping confirm prompt
-        --noop                  No-op mode: list matching paths without moving or deleting files
-        --no-delete             Skip deleting files after moving them to temporary folder
-        --no-move               Skip moving files to temporary folder before deletion
+        --noop                  No-op mode: list matching paths without moving or deleting anything. Equivalent to
+                                --no-move and --no-delete
+        --no-delete             Skip deleting matched paths after moving them to temporary folder. Ignored when --noop
+                                is used
+        --no-move               Skip moving matched paths to temporary folder before deletion. Ignored when --noop is
+                                used
         --temp-path <PATH>      Temporary path to move cleanup files before deletion
     -v, --verbosity <LEVEL>     Sets the verbosity level. Allowed values are minimal (m), normal (n) and detailed (d)
 ```

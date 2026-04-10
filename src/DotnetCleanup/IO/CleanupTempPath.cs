@@ -1,20 +1,20 @@
 ﻿namespace DotnetCleanup.IO;
 
-public static class CleanupTempPath
+internal static class CleanupTempPath
 {
-    public const string DirectoryNamePrefix = "~dotnetcleanup";
+    internal const string DirectoryNamePrefix = "~dotnetcleanup";
 
-    public static string CreateRunDirectoryPath(string tempPath, DateTimeOffset startedAt)
+    internal static string CreateRunDirectoryPath(string tempPath, DateTimeOffset startedAt)
     {
         return CreatePath(tempPath, $"{DirectoryNamePrefix}-{startedAt:yyyyMMdd-HHmmss}-{Guid.CreateVersion7():N}");
     }
 
-    public static string GetRunDirectoryPrefix(string tempPath, DateTimeOffset startedAt)
+    internal static string GetRunDirectoryPrefix(string tempPath, DateTimeOffset startedAt)
     {
         return CreatePath(tempPath, $"{DirectoryNamePrefix}-{startedAt:yyyyMMdd-HHmmss}-");
     }
 
-    public static string CreatePath(string tempPath, string directoryName, params string[] segments)
+    internal static string CreatePath(string tempPath, string directoryName, params string[] segments)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tempPath);
         ArgumentException.ThrowIfNullOrWhiteSpace(directoryName);

@@ -1,4 +1,4 @@
-﻿using DotnetCleanup.IO;
+using DotnetCleanup.IO;
 using DotnetCleanup.Testing.IO;
 using Xunit;
 

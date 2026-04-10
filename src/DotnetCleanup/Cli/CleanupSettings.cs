@@ -19,7 +19,7 @@ public sealed partial class CleanupSettings : CommandSettings
     }
 
     [CommandArgument(0, "[PATH]")]
-    [Description("The starting path for the cleanup.")]
+    [Description("The starting path for the cleanup. Defaults to current directory.")]
     public string Path { get; init; }
 
     [CommandOption("-p|--include <PATTERNS>")]

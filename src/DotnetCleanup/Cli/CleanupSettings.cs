@@ -54,15 +54,15 @@ public sealed partial class CleanupSettings : CommandSettings
 
     [CommandOption("-v|--verbosity <LEVEL>")]
     [Description("Sets the verbosity level. Allowed values are minimal (m), normal (n) and detailed (d).")]
-    public VerbosityLevelSettings VerbositySetting
+    public VerbosityLevelOptions VerbositySetting
     {
         set
         {
             Verbosity = value switch
             {
-                VerbosityLevelSettings.M or VerbosityLevelSettings.Minimal => VerbosityLevel.Minimal,
-                VerbosityLevelSettings.N or VerbosityLevelSettings.Normal => VerbosityLevel.Normal,
-                VerbosityLevelSettings.D or VerbosityLevelSettings.Detailed => VerbosityLevel.Detailed,
+                VerbosityLevelOptions.M or VerbosityLevelOptions.Minimal => VerbosityLevel.Minimal,
+                VerbosityLevelOptions.N or VerbosityLevelOptions.Normal => VerbosityLevel.Normal,
+                VerbosityLevelOptions.D or VerbosityLevelOptions.Detailed => VerbosityLevel.Detailed,
                 _ => VerbosityLevel.Normal
             };
         }
@@ -70,7 +70,7 @@ public sealed partial class CleanupSettings : CommandSettings
 
     public VerbosityLevel Verbosity { get; private set; } = VerbosityLevel.Normal;
 
-    public enum VerbosityLevelSettings
+    public enum VerbosityLevelOptions
     {
         M,
         Minimal,

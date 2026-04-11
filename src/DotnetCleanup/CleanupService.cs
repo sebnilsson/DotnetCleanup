@@ -26,9 +26,9 @@ public sealed class CleanupService(IFileSystem fileSystem)
 
     public event Action<CleanupStep>? OnDeletePathsStepDone;
 
-    public CleanupResult Cleanup(Func<bool> onConfirmCallback, CleanupSettings settings, CancellationToken cancellationToken)
+    public CleanupResult Cleanup(Func<bool> onConfirm, CleanupSettings settings, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(onConfirmCallback);
+        ArgumentNullException.ThrowIfNull(onConfirm);
         ArgumentNullException.ThrowIfNull(settings);
 
         _fileSystemService.ValidateSettings(settings);
@@ -37,7 +37,7 @@ public sealed class CleanupService(IFileSystem fileSystem)
 
         ListPaths(cleanupResult, settings, cancellationToken);
 
-        if (!onConfirmCallback())
+        if (!onConfirm())
         {
             return cleanupResult;
         }
@@ -54,16 +54,17 @@ public sealed class CleanupService(IFileSystem fileSystem)
     private void ListPaths(CleanupResult cleanupResult, CleanupSettings settings, CancellationToken cancellationToken)
     {
         OnListPathsStepStart?.Invoke();
+        cleanupResult.ListStep = new CleanupStep();
+        var listStep = cleanupResult.ListStep;
 
         foreach (var path in _fileSystemService.GetPaths(settings, cancellationToken))
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            AddPath(cleanupResult.ListStep, path, OnListPath);
+            AddPath(listStep, path, OnListPath);
         }
 
-        cleanupResult.MarkLastExecutedStage(CleanupStage.List);
-        OnListPathsStepDone?.Invoke(cleanupResult.ListStep);
+        OnListPathsStepDone?.Invoke(listStep);
     }
 
     private void MovePaths(CleanupResult cleanupResult, string tempPath, CleanupSettings settings, CancellationToken cancellationToken)
@@ -72,49 +73,55 @@ public sealed class CleanupService(IFileSystem fileSystem)
 
         if (settings.Noop)
         {
-            OnMovePathsStepDone?.Invoke(cleanupResult.MoveStep);
             return;
         }
 
+        cleanupResult.MoveStep = new CleanupStep();
+        var moveStep = cleanupResult.MoveStep;
+        var listStep = cleanupResult.ListStep ?? throw new InvalidOperationException("List step must run before move step.");
+
         if (settings.SkipMove)
         {
-            foreach (var path in cleanupResult.ListStep.Successes)
+            foreach (var path in listStep.Successes)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                AddPath(cleanupResult.MoveStep, path, OnMovePath);
+                AddPath(moveStep, path, OnMovePath);
             }
         }
         else
         {
-            Parallel.ForEach(cleanupResult.ListStep.Successes, CreateParallelOptions(cancellationToken), path =>
+            Parallel.ForEach(listStep.Successes, CreateParallelOptions(cancellationToken), path =>
             {
                 var movePath = _fileSystemService.MovePath(tempPath, path, settings);
-                AddPath(cleanupResult.MoveStep, movePath, OnMovePath);
+                AddPath(moveStep, movePath, OnMovePath);
             });
         }
 
-        cleanupResult.MarkLastExecutedStage(CleanupStage.Move);
-        OnMovePathsStepDone?.Invoke(cleanupResult.MoveStep);
+        OnMovePathsStepDone?.Invoke(moveStep);
     }
 
     private void DeletePaths(CleanupResult cleanupResult, CleanupSettings settings, CancellationToken cancellationToken)
     {
         OnDeletePathsStepStart?.Invoke();
 
-        if (!settings.ShouldSkipDelete())
+        if (settings.ShouldSkipDelete())
         {
-            Parallel.ForEach(cleanupResult.MoveStep.Successes, CreateParallelOptions(cancellationToken), path =>
-            {
-                var deletePath = _fileSystemService.DeletePath(path);
-
-                AddPath(cleanupResult.DeleteStep, deletePath, OnDeletePath);
-            });
-
-            cleanupResult.MarkLastExecutedStage(CleanupStage.Delete);
+            return;
         }
 
-        OnDeletePathsStepDone?.Invoke(cleanupResult.DeleteStep);
+        cleanupResult.DeleteStep = new CleanupStep();
+        var deleteStep = cleanupResult.DeleteStep;
+        var moveStep = cleanupResult.MoveStep ?? throw new InvalidOperationException("Move step must run before delete step.");
+
+        Parallel.ForEach(moveStep.Successes, CreateParallelOptions(cancellationToken), path =>
+        {
+            var deletePath = _fileSystemService.DeletePath(path);
+
+            AddPath(deleteStep, deletePath, OnDeletePath);
+        });
+
+        OnDeletePathsStepDone?.Invoke(deleteStep);
     }
 
     private static void AddPath(CleanupStep step, PathInfo path, Action<PathInfo>? pathEventHandler)

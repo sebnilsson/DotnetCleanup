@@ -2,21 +2,9 @@
 
 public sealed class CleanupResult
 {
-    public CleanupStep ListStep { get; } = new();
-    public CleanupStep MoveStep { get; } = new();
-    public CleanupStep DeleteStep { get; } = new();
-    public CleanupStage LastExecutedStage { get; private set; } = CleanupStage.List;
+    public CleanupStep? ListStep { get; internal set; }
 
-    public CleanupStep LastExecutedStep => LastExecutedStage switch
-    {
-        CleanupStage.List => ListStep,
-        CleanupStage.Move => MoveStep,
-        CleanupStage.Delete => DeleteStep,
-        _ => ListStep
-    };
+    public CleanupStep? MoveStep { get; internal set; }
 
-    internal void MarkLastExecutedStage(CleanupStage stage)
-    {
-        LastExecutedStage = stage;
-    }
+    public CleanupStep? DeleteStep { get; internal set; }
 }

@@ -76,7 +76,7 @@ dotnet-cleanup --no-move -y
 - Default include patterns are `**/bin`, `**/obj`, and `**/node_modules`.
 - Include/exclude patterns are matched relative to the chosen start path.
 - Exclude patterns take precedence over include patterns.
-- By default, matched paths are moved to a temp staging folder before deletion.
+- By default, matched paths are moved to a temp staging folder before deletion, then the temp staging folder for the run is removed.
 - `--no-delete` keeps moved paths in temp staging and skips deletion.
 - `--noop` lists matching paths but skips both move and delete.
 - Temp staging defaults to the system temp path; override with `--temp-path`.

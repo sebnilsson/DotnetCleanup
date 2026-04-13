@@ -1,4 +1,4 @@
-using DotnetCleanup.Cli;
+﻿using DotnetCleanup.Cli;
 using DotnetCleanup.IO;
 using DotnetCleanup.Testing.IO;
 using Xunit;
@@ -106,7 +106,7 @@ public sealed class CleanupServiceTests
     }
 
     [Fact]
-    public void Cleanup_UsesSinglePathInfoInstanceAcrossListMoveAndDelete()
+    public void Cleanup_DeletesTempRunDirectoryWhenMoveIsEnabled()
     {
         // Arrange
         var fileSystem = CreateFileSystem(
@@ -121,8 +121,6 @@ public sealed class CleanupServiceTests
 
         // Act
         var result = service.Cleanup(() => true, settings, CancellationToken.None);
-        var tempRunPath = GetTempRunPath(fileSystem, settings);
-        var expectedMovedPath = CombinePath(tempRunPath, "src", "bin");
 
         // Assert
         var listPath = Assert.Single(result.ListStep!.Successes);
@@ -130,10 +128,13 @@ public sealed class CleanupServiceTests
         var deletePath = Assert.Single(result.DeleteStep!.Successes);
 
         Assert.Same(listPath, movePath);
-        Assert.Same(listPath, deletePath);
+        Assert.NotSame(listPath, deletePath);
         Assert.Null(listPath.Exception);
         Assert.Null(listPath.FailedOn);
-        Assert.Equal(expectedMovedPath, listPath.MovePath);
+        Assert.StartsWith(GetTempRunPrefix(settings), listPath.MovePath, StringComparison.OrdinalIgnoreCase);
+        Assert.EndsWith("src/bin", listPath.MovePath.Replace('\\', '/'), StringComparison.OrdinalIgnoreCase);
+        Assert.StartsWith(GetTempRunPrefix(settings), deletePath.Value, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(fileSystem.Directories, path => path.StartsWith(GetTempRunPrefix(settings), StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -158,7 +159,8 @@ public sealed class CleanupServiceTests
         Assert.Same(listPath, failedMovePath);
         Assert.Equal(PathFailureStage.Move, failedMovePath.FailedOn);
         Assert.IsType<IOException>(failedMovePath.Exception);
-        Assert.Empty(result.DeleteStep!.Successes);
+        var deletePath = Assert.Single(result.DeleteStep!.Successes);
+        Assert.StartsWith(GetTempRunPrefix(settings), deletePath.Value, StringComparison.OrdinalIgnoreCase);
         Assert.Empty(result.DeleteStep!.Failed);
     }
 
@@ -170,9 +172,12 @@ public sealed class CleanupServiceTests
         var fileSystem = CreateFileSystem(directories: [binPath]);
 
         var service = new CleanupService(fileSystem);
-        service.OnMovePath += path => fileSystem.DeleteDirectoryExceptions.TryAdd(path.MovePath, new IOException("delete failed"));
-
         var settings = CreateSettings(fileSystem);
+        service.OnMovePath += path =>
+        {
+            var tempRunPath = PathUtility.GetParentPath(path.MovePath) ?? string.Empty;
+            fileSystem.DeleteDirectoryExceptions.TryAdd(tempRunPath, new IOException("delete failed"));
+        };
 
         // Act
         var result = service.Cleanup(() => true, settings, CancellationToken.None);
@@ -181,7 +186,8 @@ public sealed class CleanupServiceTests
         var movedPath = Assert.Single(result.MoveStep!.Successes);
         var failedDeletePath = Assert.Single(result.DeleteStep!.Failed);
 
-        Assert.Same(movedPath, failedDeletePath);
+        Assert.NotSame(movedPath, failedDeletePath);
+        Assert.StartsWith(GetTempRunPrefix(settings), failedDeletePath.Value, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(PathFailureStage.Delete, failedDeletePath.FailedOn);
         Assert.IsType<IOException>(failedDeletePath.Exception);
         Assert.Empty(result.DeleteStep!.Successes);
@@ -302,7 +308,8 @@ public sealed class CleanupServiceTests
         Assert.IsType<IOException>(failedListPath.Exception);
         Assert.Empty(result.MoveStep!.Successes);
         Assert.Empty(result.MoveStep!.Failed);
-        Assert.Empty(result.DeleteStep!.Successes);
+        var deletePath = Assert.Single(result.DeleteStep!.Successes);
+        Assert.StartsWith(GetTempRunPrefix(settings), deletePath.Value, StringComparison.OrdinalIgnoreCase);
         Assert.Empty(result.DeleteStep!.Failed);
     }
 
@@ -335,7 +342,9 @@ public sealed class CleanupServiceTests
         {
             if (string.Equals(path.Value, projectCBinPath, StringComparison.OrdinalIgnoreCase))
             {
-                fileSystem.DeleteDirectoryExceptions.TryAdd(path.MovePath, new IOException("delete failed for path"));
+                var tempProjectPath = PathUtility.GetParentPath(path.MovePath) ?? string.Empty;
+                var tempRunPath = PathUtility.GetParentPath(tempProjectPath) ?? string.Empty;
+                fileSystem.DeleteDirectoryExceptions.TryAdd(tempRunPath, new IOException("delete failed for temp run"));
             }
         };
 
@@ -359,14 +368,10 @@ public sealed class CleanupServiceTests
         Assert.EndsWith("projectA/bin", moveSucceededProjectA.MovePath.Replace('\\', '/'), StringComparison.OrdinalIgnoreCase);
 
         var deleteFailedPath = Assert.Single(result.DeleteStep!.Failed);
-        Assert.Equal(projectCBinPath, deleteFailedPath.Value);
         Assert.Equal(PathFailureStage.Delete, deleteFailedPath.FailedOn);
-        Assert.StartsWith(GetTempRunPrefix(settings), deleteFailedPath.MovePath, StringComparison.OrdinalIgnoreCase);
-        Assert.EndsWith("projectC/bin", deleteFailedPath.MovePath.Replace('\\', '/'), StringComparison.OrdinalIgnoreCase);
+        Assert.StartsWith(GetTempRunPrefix(settings), deleteFailedPath.Value, StringComparison.OrdinalIgnoreCase);
 
-        var deleteSucceededPath = Assert.Single(result.DeleteStep!.Successes);
-        Assert.Equal(projectABinPath, deleteSucceededPath.Value);
-
+        Assert.Empty(result.DeleteStep!.Successes);
         Assert.DoesNotContain(result.DeleteStep!.Successes, x => x.Value == projectBBinPath);
         Assert.DoesNotContain(result.DeleteStep!.Failed, x => x.Value == projectBBinPath);
     }
@@ -392,8 +397,6 @@ public sealed class CleanupServiceTests
 
         // Act
         var result = service.Cleanup(() => true, settings, CancellationToken.None);
-        var tempRunPath = GetTempRunPath(fileSystem, settings);
-        var movedLogFilePath = CombinePath(tempRunPath, "projectA", "artifacts", "build.log");
 
         // Assert
         var listedPath = Assert.Single(result.ListStep!.Successes);
@@ -402,10 +405,13 @@ public sealed class CleanupServiceTests
 
         Assert.True(listedPath.IsFile);
         Assert.Same(listedPath, movedPath);
-        Assert.Same(listedPath, deletedPath);
-        Assert.Equal(movedLogFilePath, listedPath.MovePath);
+        Assert.NotSame(listedPath, deletedPath);
+        Assert.StartsWith(GetTempRunPrefix(settings), listedPath.MovePath, StringComparison.OrdinalIgnoreCase);
+        Assert.EndsWith("projectA/artifacts/build.log", listedPath.MovePath.Replace('\\', '/'), StringComparison.OrdinalIgnoreCase);
+        Assert.StartsWith(GetTempRunPrefix(settings), deletedPath.Value, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain(logFilePath, fileSystem.Files, StringComparer.OrdinalIgnoreCase);
-        Assert.DoesNotContain(movedLogFilePath, fileSystem.Files, StringComparer.OrdinalIgnoreCase);
+        Assert.DoesNotContain(fileSystem.Files, path => path.StartsWith(GetTempRunPrefix(settings), StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(fileSystem.Directories, path => path.StartsWith(GetTempRunPrefix(settings), StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -471,7 +477,8 @@ public sealed class CleanupServiceTests
         Assert.Same(listedPath, failedMovePath);
         Assert.Equal(PathFailureStage.Move, failedMovePath.FailedOn);
         Assert.IsType<DirectoryNotFoundException>(failedMovePath.Exception);
-        Assert.Empty(result.DeleteStep!.Successes);
+        var deletePath = Assert.Single(result.DeleteStep!.Successes);
+        Assert.StartsWith(GetTempRunPrefix(settings), deletePath.Value, StringComparison.OrdinalIgnoreCase);
         Assert.Empty(result.DeleteStep!.Failed);
     }
 
@@ -487,8 +494,8 @@ public sealed class CleanupServiceTests
                 binPath
             ]);
         var service = new CleanupService(fileSystem);
-        service.OnMovePath += path => fileSystem.DeleteDirectory(path.MovePath);
         var settings = CreateSettings(fileSystem);
+        service.OnMovePath += _ => fileSystem.DeleteDirectory(GetTempRunPath(fileSystem, settings));
 
         // Act
         var result = service.Cleanup(() => true, settings, CancellationToken.None);
@@ -496,7 +503,7 @@ public sealed class CleanupServiceTests
         // Assert
         var failedDeletePath = Assert.Single(result.DeleteStep!.Failed);
 
-        Assert.Equal(binPath, failedDeletePath.Value);
+        Assert.StartsWith(GetTempRunPrefix(settings), failedDeletePath.Value, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(PathFailureStage.Delete, failedDeletePath.FailedOn);
         Assert.IsType<DirectoryNotFoundException>(failedDeletePath.Exception);
         Assert.Empty(result.DeleteStep!.Successes);
@@ -619,16 +626,14 @@ public sealed class CleanupServiceTests
         var fileSystem = CreateFileSystem(directories: [binPath]);
 
         var service = new CleanupService(fileSystem);
+        var settings = CreateSettings(fileSystem);
         service.OnMovePath += path =>
         {
-            // After move, the staged path will exist.
-            // Simulate it disappearing before delete.
+            var tempRunPath = PathUtility.GetParentPath(path.MovePath) ?? string.Empty;
             fileSystem.DeleteDirectoryExceptions.TryAdd(
-                path.MovePath,
+                tempRunPath,
                 new DirectoryNotFoundException("staged directory vanished"));
         };
-
-        var settings = CreateSettings(fileSystem);
 
         // Act
         var result = service.Cleanup(() => true, settings, CancellationToken.None);
@@ -636,6 +641,7 @@ public sealed class CleanupServiceTests
         // Assert
         var failedDeletePath = Assert.Single(result.DeleteStep!.Failed);
 
+        Assert.StartsWith(GetTempRunPrefix(settings), failedDeletePath.Value, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(PathFailureStage.Delete, failedDeletePath.FailedOn);
         Assert.IsType<DirectoryNotFoundException>(failedDeletePath.Exception);
     }

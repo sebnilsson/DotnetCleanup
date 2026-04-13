@@ -30,7 +30,7 @@ public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
 
         _service.OnListPath += path => WriteOnPath(settings, path, "gray", "Error listing path", verbosityLevel: VerbosityLevel.Normal);
         _service.OnMovePath += path => WriteOnPath(settings, path, "cyan", "Error moving path");
-        _service.OnDeletePath += path => WriteOnPath(settings, path, "Purple_1", "Error deleting path", useMovePathForFailure: true);
+        _service.OnDeletePath += path => WriteOnPath(settings, path, "Purple_1", "Error deleting path");
 
         var isConfirmed = false;
         var result = _service.Cleanup(onConfirm: () =>
@@ -78,18 +78,22 @@ public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
         }
     }
 
-    private void WriteOnPath(CleanupSettings settings, PathInfo path, string color, string errorText, VerbosityLevel verbosityLevel = VerbosityLevel.Detailed, bool useMovePathForFailure = false)
+    private void WriteOnPath(CleanupSettings settings, PathInfo path, string color, string errorText, VerbosityLevel verbosityLevel = VerbosityLevel.Detailed)
     {
         lock (s_consoleWriteLock)
         {
             if (path.Exception != null && settings.IsVerbosityNormal())
             {
-                var displayPath = useMovePathForFailure && !string.IsNullOrWhiteSpace(path.MovePath)
-                    ? path.MovePath
-                    : path.Value;
-
-                _console.Markup($"[red]{errorText}: {displayPath}[/] -- ");
-                _console.WriteException(path.Exception, ExceptionFormats.NoStackTrace);
+                _console.Markup($"[red]{errorText}: {path.Value}[/]");
+                if (settings.IsVerbosity(verbosityLevel))
+                {
+                    _console.Write(" -- ");
+                    _console.WriteException(path.Exception, ExceptionFormats.NoStackTrace);
+                }
+                else
+                {
+                    _console.WriteLine();
+                }
             }
             else if (settings.IsVerbosity(verbosityLevel))
             {

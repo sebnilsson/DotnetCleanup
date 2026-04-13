@@ -46,7 +46,7 @@ public sealed class CleanupService(IFileSystem fileSystem)
 
         MovePaths(cleanupResult, tempPath, settings, cancellationToken);
 
-        DeletePaths(cleanupResult, settings, cancellationToken);
+        DeletePaths(cleanupResult, tempPath, settings, cancellationToken);
 
         return cleanupResult;
     }
@@ -101,7 +101,7 @@ public sealed class CleanupService(IFileSystem fileSystem)
         OnMovePathsStepDone?.Invoke(moveStep);
     }
 
-    private void DeletePaths(CleanupResult cleanupResult, CleanupSettings settings, CancellationToken cancellationToken)
+    private void DeletePaths(CleanupResult cleanupResult, string tempPath, CleanupSettings settings, CancellationToken cancellationToken)
     {
         OnDeletePathsStepStart?.Invoke();
 
@@ -114,12 +114,21 @@ public sealed class CleanupService(IFileSystem fileSystem)
         var deleteStep = cleanupResult.DeleteStep;
         var moveStep = cleanupResult.MoveStep ?? throw new InvalidOperationException("Move step must run before delete step.");
 
-        Parallel.ForEach(moveStep.Successes, CreateParallelOptions(cancellationToken), path =>
+        if (settings.ShouldSkipMove())
         {
-            var deletePath = _fileSystemService.DeletePath(path);
+            Parallel.ForEach(moveStep.Successes, CreateParallelOptions(cancellationToken), path =>
+            {
+                var deletePath = _fileSystemService.DeletePath(path);
 
+                AddPath(deleteStep, deletePath, OnDeletePath);
+            });
+        }
+        else
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var deletePath = _fileSystemService.DeletePath(new PathInfo(tempPath, isFile: false));
             AddPath(deleteStep, deletePath, OnDeletePath);
-        });
+        }
 
         OnDeletePathsStepDone?.Invoke(deleteStep);
     }

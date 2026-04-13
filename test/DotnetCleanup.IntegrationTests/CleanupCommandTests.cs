@@ -1,4 +1,4 @@
-using DotnetCleanup.Cli;
+﻿using DotnetCleanup.Cli;
 using DotnetCleanup.IO;
 using DotnetCleanup.Spectre;
 using DotnetCleanup.Testing.IO;
@@ -414,6 +414,38 @@ public sealed class CleanupCommandTests
     }
 
     [Fact]
+    public void Run_WhenDeleteCompletes_ShowsAndRemovesTempCatalog()
+    {
+        // Arrange
+        var fileSystem = new InMemoryFileSystem(
+            directories:
+            [
+                RootPath,
+                TempPath,
+                Root("projectA"),
+                Root("projectA", "bin")
+            ]);
+        var appTester = CreateAppTester(new AppTesterConfig(FileSystem: fileSystem));
+
+        // Act
+        var result = appTester.Run(
+            [
+                RootPath,
+                "--temp-path", TempPath,
+                "-p", "**/bin",
+                "-y",
+                "--verbosity", "detailed"
+            ]);
+        var settings = Assert.IsType<CleanupSettings>(result.Settings);
+
+        // Assert
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("Delete step completed.", result.Output, StringComparison.Ordinal);
+        Assert.Contains(GetTempRunPrefix(settings), result.Output, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(fileSystem.Directories, path => path.StartsWith(GetTempRunPrefix(settings), StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void Run_WhenDeleteFails_ShowsTheStagedPath()
     {
         // Arrange
@@ -574,6 +606,14 @@ public sealed class CleanupCommandTests
 
     private static string GetTempRunPrefix(CleanupSettings settings) => CleanupTempPath.GetRunDirectoryPrefix(TempPath, settings.StartedAt);
 
+    private static string GetTempRunPath(string sourcePath, string destinationPath)
+    {
+        var relativePath = PathUtility.GetRelativePath(RootPath, sourcePath)
+            ?? throw new ArgumentException($"Failed to resolve relative path for {sourcePath}", nameof(sourcePath));
+
+        return destinationPath[..^(relativePath.Length + 1)];
+    }
+
     private record AppTesterConfig(
         TestConsole? Console = null,
         IFileSystem? FileSystem = null,
@@ -627,12 +667,13 @@ public sealed class CleanupCommandTests
         public void MoveDirectory(string sourcePath, string destinationPath)
         {
             _innerFileSystem.MoveDirectory(sourcePath, destinationPath);
-            _innerFileSystem.DeleteDirectoryExceptions.TryAdd(destinationPath, new IOException("delete failed"));
+            _innerFileSystem.DeleteDirectoryExceptions.TryAdd(GetTempRunPath(sourcePath, destinationPath), new IOException("delete failed"));
         }
 
         public void MoveFile(string sourcePath, string destinationPath)
         {
             _innerFileSystem.MoveFile(sourcePath, destinationPath);
+            _innerFileSystem.DeleteDirectoryExceptions.TryAdd(GetTempRunPath(sourcePath, destinationPath), new IOException("delete failed"));
         }
     }
 
@@ -692,13 +733,13 @@ public sealed class CleanupCommandTests
         public void MoveDirectory(string sourcePath, string destinationPath)
         {
             _innerFileSystem.MoveDirectory(sourcePath, destinationPath);
-            _innerFileSystem.DeleteDirectory(destinationPath);
+            _innerFileSystem.DeleteDirectory(GetTempRunPath(sourcePath, destinationPath));
         }
 
         public void MoveFile(string sourcePath, string destinationPath)
         {
             _innerFileSystem.MoveFile(sourcePath, destinationPath);
-            _innerFileSystem.DeleteFile(destinationPath);
+            _innerFileSystem.DeleteDirectory(GetTempRunPath(sourcePath, destinationPath));
         }
     }
 

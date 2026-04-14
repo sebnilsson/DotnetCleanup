@@ -28,7 +28,12 @@ public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
         _service.OnMovePathsStepDone += step => WriteStepCompleted(settings, step, "Move", settings.ShouldSkipMove());
         _service.OnDeletePathsStepDone += step => WriteStepCompleted(settings, step, "Delete", settings.ShouldSkipDelete());
 
-        _service.OnListPath += path => WriteOnPath(settings, path, "gray", "Error listing path", verbosityLevel: VerbosityLevel.Normal);
+        _service.OnListPath += path => WriteOnPath(
+            settings,
+            path,
+            "gray",
+            "Error listing path",
+            settings.SkipConfirm ? VerbosityLevel.Detailed : VerbosityLevel.Normal);
         _service.OnMovePath += path => WriteOnPath(settings, path, "cyan", "Error moving path");
         _service.OnDeletePath += path => WriteOnPath(settings, path, "Purple_1", "Error deleting path");
 

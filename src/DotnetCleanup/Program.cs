@@ -10,7 +10,15 @@ var typeRegistrar = GetTypeRegistrar();
 
 var app = new CommandApp<CleanupCommand>(typeRegistrar);
 
-app.Configure(CommandAppCleanupCommand.Configurator);
+app.Configure(config =>
+{
+    CommandAppCleanupCommand.Configurator(config);
+
+#if DEBUG
+    config.PropagateExceptions();
+    config.ValidateExamples();
+#endif
+});
 
 try
 {

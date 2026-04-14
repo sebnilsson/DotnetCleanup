@@ -87,24 +87,24 @@ public sealed class CleanupCommandTests
     }
 
     [Fact]
-    public void Run_NonExistingRootPath_ThrowsDirectoryNotFoundException()
+    public void Run_NonExistingRootPath_ReturnsErrorResult()
     {
         // Arrange
         var appTester = CreateAppTester(new AppTesterConfig(Directories: [TempPath]));
 
         // Act
-        var exception = Assert.Throws<DirectoryNotFoundException>(() => appTester.Run([RootPath, "--temp-path", TempPath,
-            "-y", "--noop"]));
+        var result = appTester.Run([RootPath, "--temp-path", TempPath, "-y", "--noop"]);
 
         // Assert
-        Assert.Equal($"The given path does not exist: {RootPath}", exception.Message);
+        Assert.Equal(-1, result.ExitCode);
+        Assert.Contains($"Error: The given path does not exist: {RootPath}", result.Output, StringComparison.Ordinal);
     }
 
     [Fact]
     public void Run_NonExistingTempPath_WithMoveEnabled_ThrowsDirectoryNotFoundException()
     {
         // Arrange
-        var appTester = CreateAppTester(new AppTesterConfig(Directories: [RootPath]));
+        var appTester = CreateAppTester(new AppTesterConfig(Directories: [RootPath], PropagateExceptions: true));
 
         // Act
         var exception = Assert.Throws<DirectoryNotFoundException>(() => appTester.Run([RootPath, "--temp-path", TempPath, "-y"]));
@@ -291,9 +291,10 @@ public sealed class CleanupCommandTests
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("Proceed with the cleanup?", result.Output, StringComparison.Ordinal);
         Assert.Contains("Cleanup canceled by user", result.Output, StringComparison.Ordinal);
-        Assert.Contains("2 paths found", result.Output, StringComparison.Ordinal);
+        Assert.Contains(Root("projectA", "bin"), result.Output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(Root("projectA", "obj"), result.Output, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Cleanup process completed.", result.Output, StringComparison.Ordinal);
-        Assert.DoesNotContain("succeeded.", result.Output, StringComparison.Ordinal);
+        Assert.DoesNotContain("Found:", result.Output, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -337,11 +338,11 @@ public sealed class CleanupCommandTests
 
         if (expectPathsFoundMessage)
         {
-            Assert.Contains("1 path found", result.Output, StringComparison.Ordinal);
+            Assert.Contains("Found: 1 paths", result.Output, StringComparison.Ordinal);
         }
         else
         {
-            Assert.DoesNotContain("path found", result.Output, StringComparison.Ordinal);
+            Assert.DoesNotContain("Found:", result.Output, StringComparison.Ordinal);
         }
 
         if (expectSkipMessages)
@@ -357,11 +358,13 @@ public sealed class CleanupCommandTests
 
         if (expectListStartMessage)
         {
-            Assert.Contains("Listing paths...", result.Output, StringComparison.Ordinal);
+            Assert.Contains("Finding paths...", result.Output, StringComparison.Ordinal);
+            Assert.Contains("Find step completed.", result.Output, StringComparison.Ordinal);
         }
         else
         {
-            Assert.DoesNotContain("Listing paths...", result.Output, StringComparison.Ordinal);
+            Assert.DoesNotContain("Finding paths...", result.Output, StringComparison.Ordinal);
+            Assert.DoesNotContain("Find step completed.", result.Output, StringComparison.Ordinal);
         }
 
         if (expectPathOutput)
@@ -375,11 +378,11 @@ public sealed class CleanupCommandTests
 
         if (expectSummaryMessage)
         {
-            Assert.Contains("1 succeeded.", result.Output, StringComparison.Ordinal);
+            Assert.Contains("Found: 1 paths", result.Output, StringComparison.Ordinal);
         }
         else
         {
-            Assert.DoesNotContain("1 succeeded.", result.Output, StringComparison.Ordinal);
+            Assert.DoesNotContain("Found:", result.Output, StringComparison.Ordinal);
         }
     }
 
@@ -409,8 +412,8 @@ public sealed class CleanupCommandTests
 
         // Assert
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("1 succeeded.", result.Output, StringComparison.Ordinal);
-        Assert.DoesNotContain("0 succeeded.", result.Output, StringComparison.Ordinal);
+        Assert.Contains("Moved: 1 paths", result.Output, StringComparison.Ordinal);
+        Assert.DoesNotContain("Moved: 0 paths", result.Output, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -489,7 +492,7 @@ public sealed class CleanupCommandTests
 
         // Assert
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("Listing completed with failures", result.Output, StringComparison.Ordinal);
+        Assert.Contains("Found: 0 paths (1 failed)", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("No matching paths found", result.Output, StringComparison.Ordinal);
     }
 
@@ -538,7 +541,7 @@ public sealed class CleanupCommandTests
         // Assert
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("Error moving path:", result.Output, StringComparison.Ordinal);
-        Assert.Contains("0 succeeded. 1 failed.", result.Output, StringComparison.Ordinal);
+        Assert.Contains("Moved: 0 paths (1 failed)", result.Output, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -598,7 +601,7 @@ public sealed class CleanupCommandTests
 
         // Assert
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("1 path found", result.Output, StringComparison.Ordinal);
+        Assert.Contains("Found: 1 paths", result.Output, StringComparison.Ordinal);
         Assert.Contains(binPath, fileSystem.Directories, StringComparer.OrdinalIgnoreCase);
     }
 
@@ -618,7 +621,8 @@ public sealed class CleanupCommandTests
         TestConsole? Console = null,
         IFileSystem? FileSystem = null,
         string[]? Directories = null,
-        string[]? Files = null);
+        string[]? Files = null,
+        bool PropagateExceptions = false);
 
     private static CommandAppTester CreateAppTester(AppTesterConfig? config = null)
     {
@@ -639,7 +643,15 @@ public sealed class CleanupCommandTests
             testConsole);
 
         app.SetDefaultCommand<CleanupCommand>();
-        app.Configure(CommandAppCleanupCommand.Configurator);
+        app.Configure(configurator =>
+        {
+            CommandAppCleanupCommand.Configurator(configurator);
+
+            if (config?.PropagateExceptions == true)
+            {
+                configurator.Settings.PropagateExceptions = true;
+            }
+        });
 
         return app;
     }

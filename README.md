@@ -82,3 +82,5 @@ dotnet-cleanup --no-move -y
 - Temp staging defaults to the system temp path; override with `--temp-path`.
 - Temp path is only checked when move before delete is enabled (default).
 - Verbosity levels: `minimal`, `normal`, `detailed`.
+- Normal verbosity prints completion summaries. When confirmation is enabled, matching paths are listed before the prompt.
+- Detailed verbosity also prints step headings and matching paths.

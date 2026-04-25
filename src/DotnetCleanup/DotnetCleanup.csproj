@@ -34,7 +34,6 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="DotnetCleanup.Tests" />
-    <InternalsVisibleTo Include="DotnetCleanup.IntegrationTests" />
   </ItemGroup>
 
 </Project>

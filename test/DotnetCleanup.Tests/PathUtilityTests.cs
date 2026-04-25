@@ -91,6 +91,24 @@ public sealed class PathUtilityTests
         Assert.Null(result);
     }
 
+    [Fact]
+    public void GetParentPath_ReturnsExpectedParentForUncPathsOnWindows()
+    {
+        // Arrange
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var uncPath = @"\\server\share\folder\child";
+
+        // Act
+        var result = PathUtility.GetParentPath(uncPath);
+
+        // Assert
+        Assert.Equal(@"\\server\share\folder", result);
+    }
+
     [Theory]
     [MemberData(nameof(RepresentativePathScenarios))]
     public void GetRelativePath_ReturnsForwardSlashRelativePathForRepresentativePlatformPaths(PathScenario scenario)

@@ -17,6 +17,8 @@ For path-oriented tests, prefer `test/DotnetCleanup.Testing/IO/TestPath.cs` help
 
 If temp run directory naming or composition is involved, use `src/DotnetCleanup/IO/CleanupTempPath.cs` instead of rebuilding `~dotnetcleanup` paths inline.
 
+Keep `test/DotnetCleanup.IntegrationTests` for real process-level coverage that exercises built app with real filesystem behavior. In-process `CommandAppTester` coverage for `CleanupCommand` belongs in `test/DotnetCleanup.Tests`.
+
 ## Change Checklist
 After code changes:
 - Ensure edited text files still use `CRLF`

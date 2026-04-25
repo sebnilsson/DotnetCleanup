@@ -87,9 +87,11 @@ public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
     {
         lock (s_consoleWriteLock)
         {
+            var escapedPath = Markup.Escape(path.Value);
+
             if (path.Exception != null && settings.IsVerbosityNormal())
             {
-                _console.Markup($"[red]{errorText}: {path.Value}[/]");
+                _console.Markup($"[red]{errorText}: {escapedPath}[/]");
                 if (settings.IsVerbosity(verbosityLevel))
                 {
                     _console.Write(" -- ");
@@ -102,7 +104,7 @@ public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
             }
             else if (settings.IsVerbosity(verbosityLevel))
             {
-                _console.MarkupLine($"[{color}]{path.Value}[/]");
+                _console.MarkupLine($"[{color}]{escapedPath}[/]");
             }
         }
     }

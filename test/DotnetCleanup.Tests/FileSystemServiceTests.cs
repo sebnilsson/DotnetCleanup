@@ -128,6 +128,29 @@ public sealed class FileSystemServiceTests
     }
 
     [Fact]
+    public void GetPaths_WhenCancellationRequested_ThrowsOperationCanceledException()
+    {
+        // Arrange
+        var projectPath = Root("projectA");
+        var binPath = Root("projectA", "bin");
+        var fileSystem = new InMemoryFileSystem(
+            directories:
+            [
+                RootPath,
+                TempPath,
+                projectPath,
+                binPath
+            ]);
+        var service = new FileSystemService(fileSystem);
+        var settings = CreateSettings(fileSystem);
+        using var cancellationTokenSource = new CancellationTokenSource();
+        cancellationTokenSource.Cancel();
+
+        // Act / Assert
+        Assert.Throws<OperationCanceledException>(() => service.GetPaths(settings, cancellationTokenSource.Token).ToArray());
+    }
+
+    [Fact]
     public void MovePath_BuildsTheExpectedTargetPathForFiles()
     {
         // Arrange

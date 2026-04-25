@@ -6,13 +6,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DotnetCleanup.Testing\DotnetCleanup.Testing.csproj" />
+    <ProjectReference Include="..\..\src\DotnetCleanup\DotnetCleanup.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
-    <PackageReference Include="Spectre.Console.Cli.Testing" />
-    <PackageReference Include="Spectre.Console.Testing" />
     <PackageReference Include="xunit.v3" />
     <PackageReference Include="xunit.runner.visualstudio">
       <PrivateAssets>all</PrivateAssets>

@@ -566,6 +566,54 @@ public sealed class CleanupServiceTests
     }
 
     [Fact]
+    public void Cleanup_WhenCancellationRequestedAfterListing_ThrowsOperationCanceledExceptionBeforeDelete()
+    {
+        // Arrange
+        var binPath = Root("projectA", "bin");
+        var fileSystem = CreateFileSystem(
+            directories:
+            [
+                Root("projectA"),
+                binPath
+            ]);
+        var service = new CleanupService(fileSystem);
+        var settings = CreateSettings(fileSystem);
+        using var cancellationTokenSource = new CancellationTokenSource();
+        var deleteStarted = false;
+
+        service.OnListPathsStepDone += _ => cancellationTokenSource.Cancel();
+        service.OnDeletePathsStepStart += () => deleteStarted = true;
+
+        // Act / Assert
+        Assert.Throws<OperationCanceledException>(() => service.Cleanup(() => true, settings, cancellationTokenSource.Token));
+        Assert.Contains(binPath, fileSystem.Directories, StringComparer.OrdinalIgnoreCase);
+        Assert.False(deleteStarted);
+    }
+
+    [Fact]
+    public void Cleanup_WhenCancellationRequestedAfterMove_ThrowsOperationCanceledExceptionAndLeavesStagedPaths()
+    {
+        // Arrange
+        var binPath = Root("projectA", "bin");
+        var fileSystem = CreateFileSystem(
+            directories:
+            [
+                Root("projectA"),
+                binPath
+            ]);
+        var service = new CleanupService(fileSystem);
+        var settings = CreateSettings(fileSystem);
+        using var cancellationTokenSource = new CancellationTokenSource();
+
+        service.OnMovePathsStepDone += _ => cancellationTokenSource.Cancel();
+
+        // Act / Assert
+        Assert.Throws<OperationCanceledException>(() => service.Cleanup(() => true, settings, cancellationTokenSource.Token));
+        Assert.DoesNotContain(binPath, fileSystem.Directories, StringComparer.OrdinalIgnoreCase);
+        Assert.StartsWith(GetTempRunPrefix(settings), GetTempRunPath(fileSystem, settings), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Cleanup_DirectoryDisappearsBeforeMove_ReportsPerPathMoveFailure()
     {
         // Arrange (#23 - disappearing-path regression)

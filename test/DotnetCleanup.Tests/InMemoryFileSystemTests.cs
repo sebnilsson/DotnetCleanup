@@ -34,7 +34,7 @@ public sealed class InMemoryFileSystemTests
         if (OperatingSystem.IsWindows())
         {
             act();
-            Assert.True(fileSystem.DirectoryExists(destinationPath));
+            Assert.Contains(destinationPath, fileSystem.Directories, TestPath.PathComparer);
         }
         else
         {

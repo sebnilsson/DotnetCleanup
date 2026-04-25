@@ -4,6 +4,14 @@ namespace DotnetCleanup.Testing.IO;
 
 public static class TestPath
 {
+    public static StringComparer PathComparer { get; } = OperatingSystem.IsWindows()
+        ? StringComparer.OrdinalIgnoreCase
+        : StringComparer.Ordinal;
+
+    public static StringComparison PathComparison { get; } = OperatingSystem.IsWindows()
+        ? StringComparison.OrdinalIgnoreCase
+        : StringComparison.Ordinal;
+
     public static string RootPath { get; } = GetRootedPath("root-path");
 
     public static string TempPath { get; } = GetRootedPath("temp-path");

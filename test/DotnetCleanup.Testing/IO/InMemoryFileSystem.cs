@@ -8,13 +8,9 @@ public class InMemoryFileSystem(string[]? directories = null, string[]? files = 
 
     public static string DefaultTempPath { get; } = TestPath.TempPath;
 
-    private static readonly StringComparer s_pathComparer = OperatingSystem.IsWindows()
-        ? StringComparer.OrdinalIgnoreCase
-        : StringComparer.Ordinal;
+    private static readonly StringComparer s_pathComparer = TestPath.PathComparer;
 
-    private static readonly StringComparison s_pathComparison = OperatingSystem.IsWindows()
-        ? StringComparison.OrdinalIgnoreCase
-        : StringComparison.Ordinal;
+    private static readonly StringComparison s_pathComparison = TestPath.PathComparison;
 
     private readonly Lock _fileSystemLock = new();
 

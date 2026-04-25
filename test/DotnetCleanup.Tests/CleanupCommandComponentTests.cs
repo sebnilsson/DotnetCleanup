@@ -120,7 +120,7 @@ public sealed class CleanupCommandComponentTests
         Assert.True(settings.Noop);
         Assert.True(settings.SkipMove);
         Assert.True(settings.SkipDelete);
-        Assert.Contains(binPath, fileSystem.Directories, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains(binPath, fileSystem.Directories, TestPath.PathComparer);
     }
 
     [Theory]
@@ -186,11 +186,11 @@ public sealed class CleanupCommandComponentTests
 
         // Assert
         Assert.Equal(0, result.ExitCode);
-        Assert.DoesNotContain(Root("projectA", "bin"), fileSystem.Directories, StringComparer.OrdinalIgnoreCase);
+        Assert.DoesNotContain(Root("projectA", "bin"), fileSystem.Directories, TestPath.PathComparer);
     }
 
     [Fact]
-    public void Run_WhenConfirmationRejected_DoesNotShowCompletionSummary()
+    public void Run_WhenConfirmationRejected_LeavesMatchedPaths()
     {
         // Arrange
         var testConsole = new TestConsole();
@@ -216,8 +216,8 @@ public sealed class CleanupCommandComponentTests
 
         // Assert
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains(Root("projectA", "bin"), fileSystem.Directories, StringComparer.OrdinalIgnoreCase);
-        Assert.Contains(Root("projectA", "obj"), fileSystem.Directories, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains(Root("projectA", "bin"), fileSystem.Directories, TestPath.PathComparer);
+        Assert.Contains(Root("projectA", "obj"), fileSystem.Directories, TestPath.PathComparer);
     }
 
     [Fact]
@@ -246,12 +246,12 @@ public sealed class CleanupCommandComponentTests
 
         // Assert
         Assert.Equal(0, result.ExitCode);
-        Assert.DoesNotContain(Root("projectA", "bin"), fileSystem.Directories, StringComparer.OrdinalIgnoreCase);
-        Assert.Contains(fileSystem.Directories, path => path.EndsWith(TestPath.Combine("projectA", "bin"), StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(Root("projectA", "bin"), fileSystem.Directories, TestPath.PathComparer);
+        Assert.Contains(fileSystem.Directories, path => path.EndsWith(TestPath.Combine("projectA", "bin"), TestPath.PathComparison));
     }
 
     [Fact]
-    public void Run_WhenDeleteCompletes_ShowsAndRemovesTempCatalog()
+    public void Run_WhenDeleteCompletes_RemovesTempCatalog()
     {
         // Arrange
         var fileSystem = new InMemoryFileSystem(
@@ -277,11 +277,11 @@ public sealed class CleanupCommandComponentTests
 
         // Assert
         Assert.Equal(0, result.ExitCode);
-        Assert.DoesNotContain(fileSystem.Directories, path => path.StartsWith(GetTempRunPrefix(settings), StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(fileSystem.Directories, path => path.StartsWith(GetTempRunPrefix(settings), TestPath.PathComparison));
     }
 
     [Fact]
-    public void Run_WhenDeleteFails_ShowsTheStagedPath()
+    public void Run_WhenDeleteFails_LeavesStagedPath()
     {
         // Arrange
         var fileSystem = new DeleteFailsForMovedDirectoryFileSystem(
@@ -305,7 +305,7 @@ public sealed class CleanupCommandComponentTests
 
         // Assert
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains(fileSystem.Directories, path => path.StartsWith(GetTempRunPrefix(settings), StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(fileSystem.Directories, path => path.StartsWith(GetTempRunPrefix(settings), TestPath.PathComparison));
     }
 
     [Fact]
@@ -329,7 +329,7 @@ public sealed class CleanupCommandComponentTests
 
         // Assert
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains(binPath, fileSystem.Directories, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains(binPath, fileSystem.Directories, TestPath.PathComparer);
     }
 
     [Fact]
@@ -353,7 +353,7 @@ public sealed class CleanupCommandComponentTests
 
         // Assert
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains(binPath, fileSystem.Directories, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains(binPath, fileSystem.Directories, TestPath.PathComparer);
     }
 
     [Theory]
@@ -388,7 +388,7 @@ public sealed class CleanupCommandComponentTests
 
         // Assert
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains(binPath, fileSystem.Directories, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains(binPath, fileSystem.Directories, TestPath.PathComparer);
     }
 
     private static string Root(params string[] segments) => TestPath.Root(segments);

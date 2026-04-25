@@ -8,7 +8,13 @@ public class InMemoryFileSystem(string[]? directories = null, string[]? files = 
 
     public static string DefaultTempPath { get; } = TestPath.TempPath;
 
-    private static readonly StringComparer s_pathComparer = StringComparer.OrdinalIgnoreCase;
+    private static readonly StringComparer s_pathComparer = OperatingSystem.IsWindows()
+        ? StringComparer.OrdinalIgnoreCase
+        : StringComparer.Ordinal;
+
+    private static readonly StringComparison s_pathComparison = OperatingSystem.IsWindows()
+        ? StringComparison.OrdinalIgnoreCase
+        : StringComparison.Ordinal;
 
     private readonly Lock _fileSystemLock = new();
 
@@ -16,17 +22,17 @@ public class InMemoryFileSystem(string[]? directories = null, string[]? files = 
 
     public HashSet<string> Files { get; } = CreatePathSet(files);
 
-    public Dictionary<string, Exception> ListDirectoryExceptions { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, Exception> ListDirectoryExceptions { get; } = new(s_pathComparer);
 
-    public Dictionary<string, Exception> ListFileExceptions { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, Exception> ListFileExceptions { get; } = new(s_pathComparer);
 
-    public Dictionary<string, Exception> MoveDirectoryExceptions { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, Exception> MoveDirectoryExceptions { get; } = new(s_pathComparer);
 
-    public Dictionary<string, Exception> MoveFileExceptions { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, Exception> MoveFileExceptions { get; } = new(s_pathComparer);
 
-    public Dictionary<string, Exception> DeleteDirectoryExceptions { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, Exception> DeleteDirectoryExceptions { get; } = new(s_pathComparer);
 
-    public Dictionary<string, Exception> DeleteFileExceptions { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, Exception> DeleteFileExceptions { get; } = new(s_pathComparer);
 
     public virtual void CreateDirectory(string path)
     {
@@ -53,8 +59,8 @@ public class InMemoryFileSystem(string[]? directories = null, string[]? files = 
 
             var directoryPrefix = $"{normalizedPath}{Path.DirectorySeparatorChar}";
 
-            Directories.RemoveWhere(x => s_pathComparer.Equals(x, normalizedPath) || x.StartsWith(directoryPrefix, StringComparison.OrdinalIgnoreCase));
-            Files.RemoveWhere(x => x.StartsWith(directoryPrefix, StringComparison.OrdinalIgnoreCase));
+            Directories.RemoveWhere(x => s_pathComparer.Equals(x, normalizedPath) || x.StartsWith(directoryPrefix, s_pathComparison));
+            Files.RemoveWhere(x => x.StartsWith(directoryPrefix, s_pathComparison));
         }
     }
 
@@ -92,7 +98,7 @@ public class InMemoryFileSystem(string[]? directories = null, string[]? files = 
 
             var files = Files
                 .Where(x => IsDirectChild(normalizedPath, x))
-                .Order(StringComparer.OrdinalIgnoreCase)
+                .Order(s_pathComparer)
                 .ToArray();
 
             return EnumerateChildren(files, ListFileExceptions);
@@ -111,7 +117,7 @@ public class InMemoryFileSystem(string[]? directories = null, string[]? files = 
 
             var directories = Directories
                 .Where(x => IsDirectChild(normalizedPath, x))
-                .Order(StringComparer.OrdinalIgnoreCase)
+                .Order(s_pathComparer)
                 .ToArray();
 
             return EnumerateChildren(directories, ListDirectoryExceptions);
@@ -142,7 +148,7 @@ public class InMemoryFileSystem(string[]? directories = null, string[]? files = 
             var sourcePrefix = $"{normalizedSourcePath}{Path.DirectorySeparatorChar}";
 
             var directoriesToMove = Directories
-                .Where(x => s_pathComparer.Equals(x, normalizedSourcePath) || x.StartsWith(sourcePrefix, StringComparison.OrdinalIgnoreCase))
+                .Where(x => s_pathComparer.Equals(x, normalizedSourcePath) || x.StartsWith(sourcePrefix, s_pathComparison))
                 .ToArray();
 
             if (directoriesToMove.Length == 0)
@@ -151,7 +157,7 @@ public class InMemoryFileSystem(string[]? directories = null, string[]? files = 
             }
 
             var filesToMove = Files
-                .Where(x => x.StartsWith(sourcePrefix, StringComparison.OrdinalIgnoreCase))
+                .Where(x => x.StartsWith(sourcePrefix, s_pathComparison))
                 .ToArray();
 
             foreach (var directory in directoriesToMove)
@@ -197,7 +203,7 @@ public class InMemoryFileSystem(string[]? directories = null, string[]? files = 
 
     private static HashSet<string> CreatePathSet(IEnumerable<string>? paths)
     {
-        HashSet<string> set = new(StringComparer.OrdinalIgnoreCase);
+        HashSet<string> set = new(s_pathComparer);
 
         if (paths != null)
         {

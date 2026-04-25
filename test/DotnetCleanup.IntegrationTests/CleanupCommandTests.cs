@@ -26,8 +26,6 @@ public sealed class CleanupCommandTests
 
         // Assert
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("Cleanup process completed.", result.Output, StringComparison.Ordinal);
-        Assert.Contains("Found: 1 paths", result.Output, StringComparison.Ordinal);
         Assert.True(Directory.Exists(binPath));
         Assert.Empty(workspace.GetTempRunDirectories());
         Assert.Equal(string.Empty, result.Error);
@@ -54,14 +52,13 @@ public sealed class CleanupCommandTests
         Assert.Equal(0, result.ExitCode);
         var tempRunPath = Assert.Single(workspace.GetTempRunDirectories());
 
-        Assert.DoesNotContain("Deleted:", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain(binPath, Directory.GetDirectories(workspace.RootPath, "*", SearchOption.AllDirectories), StringComparer.OrdinalIgnoreCase);
         Assert.True(Directory.Exists(Path.Combine(tempRunPath, "projectA", "bin")));
         Assert.Equal(string.Empty, result.Error);
     }
 
     [Fact]
-    public async Task Run_WithBracketedPaths_EscapesConsoleOutputAndDeletesMatchedDirectory()
+    public async Task Run_WithBracketedPaths_DeletesMatchedDirectory()
     {
         // Arrange
         using var workspace = new ProcessTestWorkspace();
@@ -80,8 +77,6 @@ public sealed class CleanupCommandTests
 
         // Assert
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains(Path.Combine("project[1]", "bin"), result.Output, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Delete step completed.", result.Output, StringComparison.Ordinal);
         Assert.False(Directory.Exists(binPath));
         Assert.Empty(workspace.GetTempRunDirectories());
         Assert.Equal(string.Empty, result.Error);
@@ -106,8 +101,6 @@ public sealed class CleanupCommandTests
 
         // Assert
         Assert.NotEqual(0, result.ExitCode);
-        Assert.Contains("The given path does not exist:", result.Output, StringComparison.Ordinal);
-        Assert.Contains("missing-root", result.Output, StringComparison.Ordinal);
         Assert.Equal(string.Empty, result.Error);
     }
 

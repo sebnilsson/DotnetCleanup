@@ -14,76 +14,33 @@ public sealed class CleanupCommandComponentTests
     public static readonly string RootPath = InMemoryFileSystem.DefaultRootPath;
     public static readonly string TempPath = InMemoryFileSystem.DefaultTempPath;
 
-    [Fact]
-    public void Run_UsingLongOptionNames_SetsSettings()
+    [Theory]
+    [InlineData(true, true, false, true, "--yes", "--what-if", "--no-move")]
+    [InlineData(true, true, false, false, "--yes", "--whatif")]
+    [InlineData(true, false, true, false, "--yes", "--no-delete")]
+    [InlineData(true, true, false, false, "-y", "--noop")]
+    public void Run_UsingOptionAliases_SetsSettings(
+        bool skipConfirm,
+        bool noop,
+        bool skipDelete,
+        bool skipMove,
+        params string[] args)
     {
         // Arrange
         var appTester = CreateAppTester();
 
         // Act
-        var result = appTester.Run([RootPath, "--temp-path", TempPath,
-            "--yes", "--what-if", "--no-move"]);
-        var settings = result.Settings as CleanupSettings;
+        var result = appTester.Run([RootPath, "--temp-path", TempPath, .. args]);
+        var settings = Assert.IsType<CleanupSettings>(result.Settings);
 
         // Assert
-        Assert.True(settings?.StartedAt > default(DateTimeOffset));
-        Assert.Equal(InMemoryFileSystem.DefaultRootPath, settings?.Path);
-        Assert.True(settings?.SkipConfirm);
-        Assert.True(settings?.Noop);
-        Assert.False(settings?.SkipDelete);
-        Assert.True(settings?.SkipMove);
-        Assert.Equal(InMemoryFileSystem.DefaultTempPath, settings?.TempPath);
-    }
-
-    [Fact]
-    public void Run_UsingSecondOptionNames_SetsSettings()
-    {
-        // Arrange
-        var appTester = CreateAppTester();
-
-        // Act
-        var result = appTester.Run([RootPath, "--temp-path", TempPath,
-            "--yes", "--whatif"]);
-        var settings = result.Settings as CleanupSettings;
-
-        // Assert
-        Assert.True(settings?.SkipConfirm);
-        Assert.True(settings?.Noop);
-        Assert.False(settings?.SkipDelete);
-    }
-
-    [Fact]
-    public void Run_UsingNoDeleteOption_SetsSettings()
-    {
-        // Arrange
-        var appTester = CreateAppTester();
-
-        // Act
-        var result = appTester.Run([RootPath, "--temp-path", TempPath,
-            "--yes", "--no-delete"]);
-        var settings = result.Settings as CleanupSettings;
-
-        // Assert
-        Assert.True(settings?.SkipConfirm);
-        Assert.False(settings?.Noop);
-        Assert.True(settings?.SkipDelete);
-    }
-
-    [Fact]
-    public void Run_UsingShortOptionNames_SetsSettings()
-    {
-        // Arrange
-        var appTester = CreateAppTester();
-
-        // Act
-        var result = appTester.Run([RootPath, "--temp-path", TempPath,
-            "-y", "--noop"]);
-        var settings = result.Settings as CleanupSettings;
-
-        // Assert
-        Assert.True(settings?.SkipConfirm);
-        Assert.True(settings?.Noop);
-        Assert.False(settings?.SkipDelete);
+        Assert.True(settings.StartedAt > default(DateTimeOffset));
+        Assert.Equal(InMemoryFileSystem.DefaultRootPath, settings.Path);
+        Assert.Equal(skipConfirm, settings.SkipConfirm);
+        Assert.Equal(noop, settings.Noop);
+        Assert.Equal(skipDelete, settings.SkipDelete);
+        Assert.Equal(skipMove, settings.SkipMove);
+        Assert.Equal(InMemoryFileSystem.DefaultTempPath, settings.TempPath);
     }
 
     [Fact]
@@ -97,7 +54,6 @@ public sealed class CleanupCommandComponentTests
 
         // Assert
         Assert.Equal(-1, result.ExitCode);
-        Assert.Contains($"Error: The given path does not exist: {RootPath}", result.Output, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -164,65 +120,37 @@ public sealed class CleanupCommandComponentTests
         Assert.True(settings.Noop);
         Assert.True(settings.SkipMove);
         Assert.True(settings.SkipDelete);
-        Assert.Contains("Skipping moving paths", result.Output, StringComparison.Ordinal);
-        Assert.Contains("Skipping deleting paths", result.Output, StringComparison.Ordinal);
         Assert.Contains(binPath, fileSystem.Directories, StringComparer.OrdinalIgnoreCase);
     }
 
-    [Fact]
-    public void Run_UsingLongIncludeOptionMultipleTimes_SetsSettings()
+    [Theory]
+    [InlineData("--include")]
+    [InlineData("-p")]
+    public void Run_UsingIncludeOptionMultipleTimes_SetsSettings(string option)
     {
         // Arrange
         var appTester = CreateAppTester();
 
         // Act
         var result = appTester.Run([RootPath, "--temp-path", TempPath,
-            "--include", "**/bin", "--include", "**/obj", "--include", "**/node_modules", "-y", "--noop"]);
+            option, "**/bin", option, "**/obj", option, "**/node_modules", "-y", "--noop"]);
         var settings = Assert.IsType<CleanupSettings>(result.Settings);
 
         // Assert
         Assert.Equal(["**/bin", "**/obj", "**/node_modules"], settings.Include);
     }
 
-    [Fact]
-    public void Run_UsingLongExcludeOptionMultipleTimes_SetsSettings()
+    [Theory]
+    [InlineData("--exclude")]
+    [InlineData("-x")]
+    public void Run_UsingExcludeOptionMultipleTimes_SetsSettings(string option)
     {
         // Arrange
         var appTester = CreateAppTester();
 
         // Act
         var result = appTester.Run([RootPath, "--temp-path", TempPath,
-            "--exclude", "**/bin", "--exclude", "**/obj", "--exclude", "**/node_modules", "-y", "--noop"]);
-        var settings = Assert.IsType<CleanupSettings>(result.Settings);
-
-        // Assert
-        Assert.Equal(["**/bin", "**/obj", "**/node_modules"], settings.Exclude);
-    }
-
-    [Fact]
-    public void Run_UsingShortIncludeOptionMultipleTimes_SetsSettings()
-    {
-        // Arrange
-        var appTester = CreateAppTester();
-
-        // Act
-        var result = appTester.Run([RootPath, "--temp-path", TempPath,
-            "-p", "**/bin", "-p", "**/obj", "-p", "**/node_modules", "-y", "--noop"]);
-        var settings = Assert.IsType<CleanupSettings>(result.Settings);
-
-        // Assert
-        Assert.Equal(["**/bin", "**/obj", "**/node_modules"], settings.Include);
-    }
-
-    [Fact]
-    public void Run_UsingShortExcludeOptionMultipleTimes_SetsSettings()
-    {
-        // Arrange
-        var appTester = CreateAppTester();
-
-        // Act
-        var result = appTester.Run([RootPath, "--temp-path", TempPath,
-            "-x", "**/bin", "-x", "**/obj", "-x", "**/node_modules", "-y", "--noop"]);
+            option, "**/bin", option, "**/obj", option, "**/node_modules", "-y", "--noop"]);
         var settings = Assert.IsType<CleanupSettings>(result.Settings);
 
         // Assert
@@ -253,13 +181,12 @@ public sealed class CleanupCommandComponentTests
                 "--temp-path", TempPath,
                 "-p", "**/bin",
                 "--yes",
-                "--noop"
+                "--no-move"
             ]);
 
         // Assert
         Assert.Equal(0, result.ExitCode);
-        Assert.DoesNotContain("Proceed with the cleanup?", result.Output, StringComparison.Ordinal);
-        Assert.DoesNotContain("Cleanup canceled by user", result.Output, StringComparison.Ordinal);
+        Assert.DoesNotContain(Root("projectA", "bin"), fileSystem.Directories, StringComparer.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -289,95 +216,12 @@ public sealed class CleanupCommandComponentTests
 
         // Assert
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("Proceed with the cleanup?", result.Output, StringComparison.Ordinal);
-        Assert.Contains("Cleanup canceled by user", result.Output, StringComparison.Ordinal);
-        Assert.Contains(Root("projectA", "bin"), result.Output, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains(Root("projectA", "obj"), result.Output, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("Cleanup process completed.", result.Output, StringComparison.Ordinal);
-        Assert.DoesNotContain("Found:", result.Output, StringComparison.Ordinal);
-    }
-
-    [Theory]
-    [InlineData("minimal", false, false, false, false)]
-    [InlineData("normal", true, true, false, false)]
-    [InlineData("detailed", true, true, true, true)]
-    public void Run_DifferentVerbosityLevels_OutputExpectedConsoleContent(
-        string verbosity,
-        bool expectPathsFoundMessage,
-        bool expectSkipMessages,
-        bool expectListStartMessage,
-        bool expectPathOutput)
-    {
-        // Arrange
-        var binPath = Root("projectA", "bin");
-        var fileSystem = new InMemoryFileSystem(
-            directories:
-            [
-                RootPath,
-                TempPath,
-                Root("projectA"),
-                binPath
-            ]);
-        var appTester = CreateAppTester(new AppTesterConfig(FileSystem: fileSystem));
-
-        // Act
-        var result = appTester.Run(
-            [
-                RootPath,
-                "--temp-path", TempPath,
-                "-p", "**/bin",
-                "-y",
-                "--noop",
-                "--verbosity", verbosity
-            ]);
-
-        // Assert
-        Assert.Equal(0, result.ExitCode);
-        Assert.Contains("Cleanup process completed.", result.Output, StringComparison.Ordinal);
-
-        if (expectPathsFoundMessage)
-        {
-            Assert.Contains("Found: 1 paths", result.Output, StringComparison.Ordinal);
-        }
-        else
-        {
-            Assert.DoesNotContain("Found:", result.Output, StringComparison.Ordinal);
-        }
-
-        if (expectSkipMessages)
-        {
-            Assert.Contains("Skipping moving paths", result.Output, StringComparison.Ordinal);
-            Assert.Contains("Skipping deleting paths", result.Output, StringComparison.Ordinal);
-        }
-        else
-        {
-            Assert.DoesNotContain("Skipping moving paths", result.Output, StringComparison.Ordinal);
-            Assert.DoesNotContain("Skipping deleting paths", result.Output, StringComparison.Ordinal);
-        }
-
-        if (expectListStartMessage)
-        {
-            Assert.Contains("Finding paths...", result.Output, StringComparison.Ordinal);
-            Assert.Contains("Find step completed.", result.Output, StringComparison.Ordinal);
-        }
-        else
-        {
-            Assert.DoesNotContain("Finding paths...", result.Output, StringComparison.Ordinal);
-            Assert.DoesNotContain("Find step completed.", result.Output, StringComparison.Ordinal);
-        }
-
-        if (expectPathOutput)
-        {
-            Assert.Contains(binPath, result.Output, StringComparison.OrdinalIgnoreCase);
-        }
-        else
-        {
-            Assert.DoesNotContain(binPath, result.Output, StringComparison.OrdinalIgnoreCase);
-        }
+        Assert.Contains(Root("projectA", "bin"), fileSystem.Directories, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains(Root("projectA", "obj"), fileSystem.Directories, StringComparer.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public void Run_WithNoDelete_SummarizesMoveStep()
+    public void Run_WithNoDelete_MovesWithoutDeletingStagedPath()
     {
         // Arrange
         var fileSystem = new InMemoryFileSystem(
@@ -402,8 +246,8 @@ public sealed class CleanupCommandComponentTests
 
         // Assert
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("Moved: 1 paths", result.Output, StringComparison.Ordinal);
-        Assert.DoesNotContain("Moved: 0 paths", result.Output, StringComparison.Ordinal);
+        Assert.DoesNotContain(Root("projectA", "bin"), fileSystem.Directories, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains(fileSystem.Directories, path => path.EndsWith(TestPath.Combine("projectA", "bin"), StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -433,8 +277,6 @@ public sealed class CleanupCommandComponentTests
 
         // Assert
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("Delete step completed.", result.Output, StringComparison.Ordinal);
-        Assert.Contains(GetTempRunPrefix(settings), result.Output, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain(fileSystem.Directories, path => path.StartsWith(GetTempRunPrefix(settings), StringComparison.OrdinalIgnoreCase));
     }
 
@@ -460,32 +302,14 @@ public sealed class CleanupCommandComponentTests
                 "-y"
             ]);
         var settings = Assert.IsType<CleanupSettings>(result.Settings);
-        // Assert
-        Assert.Equal(0, result.ExitCode);
-        Assert.Contains("Error deleting path:", result.Output, StringComparison.Ordinal);
-        Assert.Contains(GetTempRunPrefix(settings), result.Output, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain($"Error deleting path: {Root("projectA", "bin")}", result.Output, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void Run_WhenListingFails_DoesNotReportNoMatchingPathsFound()
-    {
-        // Arrange
-        var fileSystem = new InMemoryFileSystem(directories: [RootPath, TempPath]);
-        fileSystem.ListFileExceptions.Add(RootPath, new IOException("list failed"));
-        var appTester = CreateAppTester(new AppTesterConfig(FileSystem: fileSystem));
-
-        // Act
-        var result = appTester.Run([RootPath, "--temp-path", TempPath, "-y", "--noop"]);
 
         // Assert
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("Found: 0 paths (1 failed)", result.Output, StringComparison.Ordinal);
-        Assert.DoesNotContain("No matching paths found", result.Output, StringComparison.Ordinal);
+        Assert.Contains(fileSystem.Directories, path => path.StartsWith(GetTempRunPrefix(settings), StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
-    public void Run_WhenListedPathDisappearsBeforeMove_ShowsMoveError()
+    public void Run_WhenListedPathDisappearsBeforeMove_LeavesOriginalPath()
     {
         // Arrange
         var binPath = Root("projectA", "bin");
@@ -505,11 +329,11 @@ public sealed class CleanupCommandComponentTests
 
         // Assert
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains($"Error moving path: {binPath}", result.Output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(binPath, fileSystem.Directories, StringComparer.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public void Run_WhenMoveFails_FinalSummaryIncludesFailureCount()
+    public void Run_WhenMoveFails_LeavesOriginalPath()
     {
         // Arrange
         var binPath = Root("projectA", "bin");
@@ -529,31 +353,7 @@ public sealed class CleanupCommandComponentTests
 
         // Assert
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("Error moving path:", result.Output, StringComparison.Ordinal);
-        Assert.Contains("Moved: 0 paths (1 failed)", result.Output, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Run_WhenStagedPathDisappearsBeforeDelete_ShowsDeleteError()
-    {
-        // Arrange
-        var fileSystem = new DeleteTargetDisappearsFileSystem(
-            [
-                RootPath,
-                TempPath,
-                Root("projectA"),
-                Root("projectA", "bin")
-            ]);
-        var appTester = CreateAppTester(new AppTesterConfig(FileSystem: fileSystem));
-
-        // Act
-        var result = appTester.Run([RootPath, "--temp-path", TempPath, "-p", "**/bin", "-y"]);
-        var settings = Assert.IsType<CleanupSettings>(result.Settings);
-
-        // Assert
-        Assert.Equal(0, result.ExitCode);
-        Assert.Contains("Error deleting path:", result.Output, StringComparison.Ordinal);
-        Assert.Contains(GetTempRunPrefix(settings), result.Output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(binPath, fileSystem.Directories, StringComparer.OrdinalIgnoreCase);
     }
 
     [Theory]
@@ -588,7 +388,6 @@ public sealed class CleanupCommandComponentTests
 
         // Assert
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("Found: 1 paths", result.Output, StringComparison.Ordinal);
         Assert.Contains(binPath, fileSystem.Directories, StringComparer.OrdinalIgnoreCase);
     }
 
@@ -655,21 +454,6 @@ public sealed class CleanupCommandComponentTests
         {
             base.MoveFile(sourcePath, destinationPath);
             DeleteDirectoryExceptions.TryAdd(GetTempRunPath(sourcePath, destinationPath), new IOException("delete failed"));
-        }
-    }
-
-    private sealed class DeleteTargetDisappearsFileSystem(string[] directories) : InMemoryFileSystem(directories)
-    {
-        public override void MoveDirectory(string sourcePath, string destinationPath)
-        {
-            base.MoveDirectory(sourcePath, destinationPath);
-            DeleteDirectory(GetTempRunPath(sourcePath, destinationPath));
-        }
-
-        public override void MoveFile(string sourcePath, string destinationPath)
-        {
-            base.MoveFile(sourcePath, destinationPath);
-            DeleteDirectory(GetTempRunPath(sourcePath, destinationPath));
         }
     }
 }

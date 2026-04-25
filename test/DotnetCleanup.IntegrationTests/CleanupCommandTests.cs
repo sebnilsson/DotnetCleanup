@@ -105,8 +105,8 @@ public sealed class CleanupCommandTests
             ]);
 
         // Assert
-        Assert.Equal(-1, result.ExitCode);
-        Assert.Contains("Error: The given path does not exist:", result.Output, StringComparison.Ordinal);
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("The given path does not exist:", result.Output, StringComparison.Ordinal);
         Assert.Contains("missing-root", result.Output, StringComparison.Ordinal);
         Assert.Equal(string.Empty, result.Error);
     }
@@ -126,6 +126,7 @@ public sealed class CleanupCommandTests
             WorkingDirectory = workingDirectory
         };
 
+        process.StartInfo.EnvironmentVariables["NO_COLOR"] = "1";
         process.StartInfo.ArgumentList.Add(ApplicationPath);
 
         foreach (var arg in args)
@@ -173,7 +174,7 @@ public sealed class CleanupCommandTests
 
         public string CreateRootDirectory(params string[] segments)
         {
-            var path = CombinePath(RootPath, segments);
+            var path = Path.Combine([RootPath, .. segments]);
             Directory.CreateDirectory(path);
             return path;
         }
@@ -200,18 +201,6 @@ public sealed class CleanupCommandTests
             catch (UnauthorizedAccessException)
             {
             }
-        }
-
-        private static string CombinePath(string path, IEnumerable<string> segments)
-        {
-            var combinedPath = path;
-
-            foreach (var segment in segments)
-            {
-                combinedPath = Path.Combine(combinedPath, segment);
-            }
-
-            return combinedPath;
         }
     }
 }

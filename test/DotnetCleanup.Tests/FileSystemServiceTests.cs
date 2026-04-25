@@ -64,18 +64,11 @@ public sealed class FileSystemServiceTests
         // Arrange
         var firstLogPath = Root("a-first.log");
         var secondLogPath = Root("b-second.log");
-        var innerFileSystem = new InMemoryFileSystem(
-            directories:
-            [
-                RootPath,
-                TempPath
-            ],
-            files:
-            [
-                firstLogPath,
-                secondLogPath
-            ]);
-        var fileSystem = new ThrowsDuringFileEnumerationFileSystem(innerFileSystem, RootPath, new IOException("mid-traversal file failure"));
+        var fileSystem = new ThrowsDuringFileEnumerationFileSystem(
+            [RootPath, TempPath],
+            [firstLogPath, secondLogPath],
+            RootPath,
+            new IOException("mid-traversal file failure"));
         var service = new FileSystemService(fileSystem);
         var settings = CreateSettings(fileSystem, include: ["**/*.log"]);
 
@@ -99,8 +92,7 @@ public sealed class FileSystemServiceTests
         // Arrange
         var projectABinPath = Root("projectA", "bin");
         var projectBBinPath = Root("projectB", "bin");
-        var innerFileSystem = new InMemoryFileSystem(
-            directories:
+        var fileSystem = new ThrowsDuringDirectoryEnumerationFileSystem(
             [
                 RootPath,
                 TempPath,
@@ -108,8 +100,9 @@ public sealed class FileSystemServiceTests
                 projectABinPath,
                 Root("projectB"),
                 projectBBinPath
-            ]);
-        var fileSystem = new ThrowsDuringDirectoryEnumerationFileSystem(innerFileSystem, RootPath, new IOException("mid-traversal directory failure"));
+            ],
+            RootPath,
+            new IOException("mid-traversal directory failure"));
         var service = new FileSystemService(fileSystem);
         var settings = CreateSettings(fileSystem, include: ["**/bin"]);
 
@@ -175,7 +168,7 @@ public sealed class FileSystemServiceTests
 
         // Act
         var movedPath = service.MovePath(tempRunPath, path, settings);
-        var expectedMovePath = CombinePath(tempRunPath, "projectA", "artifacts", "build.log");
+        var expectedMovePath = TestPath.Combine(tempRunPath, "projectA", "artifacts", "build.log");
 
         // Assert
         Assert.Same(path, movedPath);
@@ -401,8 +394,6 @@ public sealed class FileSystemServiceTests
 
     private static string Root(params string[] segments) => TestPath.Root(segments);
 
-    private static string CombinePath(string path, params string[] segments) => TestPath.Combine(path, segments);
-
     private static string TempRunPath(string suffix, params string[] segments)
     {
         return CleanupTempPath.CreatePath(TempPath, $"{CleanupTempPath.DirectoryNamePrefix}-{suffix}", segments);
@@ -410,7 +401,7 @@ public sealed class FileSystemServiceTests
 
     private static string GetTempRunPrefix(CleanupSettings settings) => CleanupTempPath.GetRunDirectoryPrefix(TempPath, settings.StartedAt);
 
-    private sealed class ThrowsDuringFileEnumerationFileSystem(InMemoryFileSystem innerFileSystem, string failingPath, Exception exception) : DelegatingFileSystem(innerFileSystem)
+    private sealed class ThrowsDuringFileEnumerationFileSystem(string[] directories, string[] files, string failingPath, Exception exception) : InMemoryFileSystem(directories, files)
     {
         private readonly Exception _exception = exception ?? throw new ArgumentNullException(nameof(exception));
         private readonly string _failingPath = failingPath ?? throw new ArgumentNullException(nameof(failingPath));
@@ -442,7 +433,7 @@ public sealed class FileSystemServiceTests
         }
     }
 
-    private sealed class ThrowsDuringDirectoryEnumerationFileSystem(InMemoryFileSystem innerFileSystem, string failingPath, Exception exception) : DelegatingFileSystem(innerFileSystem)
+    private sealed class ThrowsDuringDirectoryEnumerationFileSystem(string[] directories, string failingPath, Exception exception) : InMemoryFileSystem(directories)
     {
         private readonly Exception _exception = exception ?? throw new ArgumentNullException(nameof(exception));
         private readonly string _failingPath = failingPath ?? throw new ArgumentNullException(nameof(failingPath));
@@ -474,28 +465,4 @@ public sealed class FileSystemServiceTests
         }
     }
 
-    private abstract class DelegatingFileSystem(InMemoryFileSystem innerFileSystem) : IFileSystem
-    {
-        private readonly InMemoryFileSystem _innerFileSystem = innerFileSystem ?? throw new ArgumentNullException(nameof(innerFileSystem));
-
-        public void CreateDirectory(string path) => _innerFileSystem.CreateDirectory(path);
-
-        public void DeleteDirectory(string path) => _innerFileSystem.DeleteDirectory(path);
-
-        public void DeleteFile(string path) => _innerFileSystem.DeleteFile(path);
-
-        public bool DirectoryExists(string path) => _innerFileSystem.DirectoryExists(path);
-
-        public virtual IEnumerable<string> EnumerateDirectories(string path) => _innerFileSystem.EnumerateDirectories(path);
-
-        public virtual IEnumerable<string> EnumerateFiles(string path) => _innerFileSystem.EnumerateFiles(path);
-
-        public string GetCurrentDirectory() => _innerFileSystem.GetCurrentDirectory();
-
-        public string GetTempPath() => _innerFileSystem.GetTempPath();
-
-        public void MoveDirectory(string sourcePath, string destinationPath) => _innerFileSystem.MoveDirectory(sourcePath, destinationPath);
-
-        public void MoveFile(string sourcePath, string destinationPath) => _innerFileSystem.MoveFile(sourcePath, destinationPath);
-    }
 }

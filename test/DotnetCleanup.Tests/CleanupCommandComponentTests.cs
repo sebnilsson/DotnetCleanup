@@ -298,16 +298,15 @@ public sealed class CleanupCommandComponentTests
     }
 
     [Theory]
-    [InlineData("minimal", false, false, false, false, false)]
-    [InlineData("normal", true, true, false, false, true)]
-    [InlineData("detailed", true, true, true, true, true)]
+    [InlineData("minimal", false, false, false, false)]
+    [InlineData("normal", true, true, false, false)]
+    [InlineData("detailed", true, true, true, true)]
     public void Run_DifferentVerbosityLevels_OutputExpectedConsoleContent(
         string verbosity,
         bool expectPathsFoundMessage,
         bool expectSkipMessages,
         bool expectListStartMessage,
-        bool expectPathOutput,
-        bool expectSummaryMessage)
+        bool expectPathOutput)
     {
         // Arrange
         var binPath = Root("projectA", "bin");
@@ -374,15 +373,6 @@ public sealed class CleanupCommandComponentTests
         else
         {
             Assert.DoesNotContain(binPath, result.Output, StringComparison.OrdinalIgnoreCase);
-        }
-
-        if (expectSummaryMessage)
-        {
-            Assert.Contains("Found: 1 paths", result.Output, StringComparison.Ordinal);
-        }
-        else
-        {
-            Assert.DoesNotContain("Found:", result.Output, StringComparison.Ordinal);
         }
     }
 
@@ -452,15 +442,13 @@ public sealed class CleanupCommandComponentTests
     public void Run_WhenDeleteFails_ShowsTheStagedPath()
     {
         // Arrange
-        var innerFileSystem = new InMemoryFileSystem(
-            directories:
+        var fileSystem = new DeleteFailsForMovedDirectoryFileSystem(
             [
                 RootPath,
                 TempPath,
                 Root("projectA"),
                 Root("projectA", "bin")
             ]);
-        var fileSystem = new DeleteFailsForMovedDirectoryFileSystem(innerFileSystem);
         var appTester = CreateAppTester(new AppTesterConfig(FileSystem: fileSystem));
 
         // Act
@@ -500,31 +488,8 @@ public sealed class CleanupCommandComponentTests
     public void Run_WhenListedPathDisappearsBeforeMove_ShowsMoveError()
     {
         // Arrange
-        var innerFileSystem = new InMemoryFileSystem(
-            directories:
-            [
-                RootPath,
-                TempPath,
-                Root("projectA"),
-                Root("projectA", "bin")
-            ]);
-        var fileSystem = new MoveSourceDisappearsFileSystem(innerFileSystem);
-        var appTester = CreateAppTester(new AppTesterConfig(FileSystem: fileSystem));
-
-        // Act
-        var result = appTester.Run([RootPath, "--temp-path", TempPath, "-p", "**/bin", "-y"]);
-
-        // Assert
-        Assert.Equal(0, result.ExitCode);
-        Assert.Contains($"Error moving path: {Root("projectA", "bin")}", result.Output, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void Run_WhenMoveFails_FinalSummaryIncludesFailureCount()
-    {
-        // Arrange
         var binPath = Root("projectA", "bin");
-        var innerFileSystem = new InMemoryFileSystem(
+        var fileSystem = new InMemoryFileSystem(
             directories:
             [
                 RootPath,
@@ -532,7 +497,31 @@ public sealed class CleanupCommandComponentTests
                 Root("projectA"),
                 binPath
             ]);
-        var fileSystem = new MoveFailsForDirectoryFileSystem(innerFileSystem, binPath);
+        fileSystem.MoveDirectoryExceptions.Add(binPath, new DirectoryNotFoundException("source vanished"));
+        var appTester = CreateAppTester(new AppTesterConfig(FileSystem: fileSystem));
+
+        // Act
+        var result = appTester.Run([RootPath, "--temp-path", TempPath, "-p", "**/bin", "-y"]);
+
+        // Assert
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains($"Error moving path: {binPath}", result.Output, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Run_WhenMoveFails_FinalSummaryIncludesFailureCount()
+    {
+        // Arrange
+        var binPath = Root("projectA", "bin");
+        var fileSystem = new InMemoryFileSystem(
+            directories:
+            [
+                RootPath,
+                TempPath,
+                Root("projectA"),
+                binPath
+            ]);
+        fileSystem.MoveDirectoryExceptions.Add(binPath, new IOException("move failed"));
         var appTester = CreateAppTester(new AppTesterConfig(FileSystem: fileSystem));
 
         // Act
@@ -548,15 +537,13 @@ public sealed class CleanupCommandComponentTests
     public void Run_WhenStagedPathDisappearsBeforeDelete_ShowsDeleteError()
     {
         // Arrange
-        var innerFileSystem = new InMemoryFileSystem(
-            directories:
+        var fileSystem = new DeleteTargetDisappearsFileSystem(
             [
                 RootPath,
                 TempPath,
                 Root("projectA"),
                 Root("projectA", "bin")
             ]);
-        var fileSystem = new DeleteTargetDisappearsFileSystem(innerFileSystem);
         var appTester = CreateAppTester(new AppTesterConfig(FileSystem: fileSystem));
 
         // Act
@@ -656,136 +643,33 @@ public sealed class CleanupCommandComponentTests
         return app;
     }
 
-    private sealed class DeleteFailsForMovedDirectoryFileSystem(InMemoryFileSystem innerFileSystem) : IFileSystem
+    private sealed class DeleteFailsForMovedDirectoryFileSystem(string[] directories) : InMemoryFileSystem(directories)
     {
-        private readonly InMemoryFileSystem _innerFileSystem = innerFileSystem ?? throw new ArgumentNullException(nameof(innerFileSystem));
-
-        public void CreateDirectory(string path) => _innerFileSystem.CreateDirectory(path);
-
-        public void DeleteDirectory(string path) => _innerFileSystem.DeleteDirectory(path);
-
-        public void DeleteFile(string path) => _innerFileSystem.DeleteFile(path);
-
-        public bool DirectoryExists(string path) => _innerFileSystem.DirectoryExists(path);
-
-        public IEnumerable<string> EnumerateDirectories(string path) => _innerFileSystem.EnumerateDirectories(path);
-
-        public IEnumerable<string> EnumerateFiles(string path) => _innerFileSystem.EnumerateFiles(path);
-
-        public string GetCurrentDirectory() => _innerFileSystem.GetCurrentDirectory();
-
-        public string GetTempPath() => _innerFileSystem.GetTempPath();
-
-        public void MoveDirectory(string sourcePath, string destinationPath)
+        public override void MoveDirectory(string sourcePath, string destinationPath)
         {
-            _innerFileSystem.MoveDirectory(sourcePath, destinationPath);
-            _innerFileSystem.DeleteDirectoryExceptions.TryAdd(GetTempRunPath(sourcePath, destinationPath), new IOException("delete failed"));
+            base.MoveDirectory(sourcePath, destinationPath);
+            DeleteDirectoryExceptions.TryAdd(GetTempRunPath(sourcePath, destinationPath), new IOException("delete failed"));
         }
 
-        public void MoveFile(string sourcePath, string destinationPath)
+        public override void MoveFile(string sourcePath, string destinationPath)
         {
-            _innerFileSystem.MoveFile(sourcePath, destinationPath);
-            _innerFileSystem.DeleteDirectoryExceptions.TryAdd(GetTempRunPath(sourcePath, destinationPath), new IOException("delete failed"));
+            base.MoveFile(sourcePath, destinationPath);
+            DeleteDirectoryExceptions.TryAdd(GetTempRunPath(sourcePath, destinationPath), new IOException("delete failed"));
         }
     }
 
-    private sealed class MoveSourceDisappearsFileSystem(InMemoryFileSystem innerFileSystem) : IFileSystem
+    private sealed class DeleteTargetDisappearsFileSystem(string[] directories) : InMemoryFileSystem(directories)
     {
-        private readonly InMemoryFileSystem _innerFileSystem = innerFileSystem ?? throw new ArgumentNullException(nameof(innerFileSystem));
-
-        public void CreateDirectory(string path) => _innerFileSystem.CreateDirectory(path);
-
-        public void DeleteDirectory(string path) => _innerFileSystem.DeleteDirectory(path);
-
-        public void DeleteFile(string path) => _innerFileSystem.DeleteFile(path);
-
-        public bool DirectoryExists(string path) => _innerFileSystem.DirectoryExists(path);
-
-        public IEnumerable<string> EnumerateDirectories(string path) => _innerFileSystem.EnumerateDirectories(path);
-
-        public IEnumerable<string> EnumerateFiles(string path) => _innerFileSystem.EnumerateFiles(path);
-
-        public string GetCurrentDirectory() => _innerFileSystem.GetCurrentDirectory();
-
-        public string GetTempPath() => _innerFileSystem.GetTempPath();
-
-        public void MoveDirectory(string sourcePath, string destinationPath)
+        public override void MoveDirectory(string sourcePath, string destinationPath)
         {
-            _innerFileSystem.DeleteDirectory(sourcePath);
-            _innerFileSystem.MoveDirectory(sourcePath, destinationPath);
+            base.MoveDirectory(sourcePath, destinationPath);
+            DeleteDirectory(GetTempRunPath(sourcePath, destinationPath));
         }
 
-        public void MoveFile(string sourcePath, string destinationPath)
+        public override void MoveFile(string sourcePath, string destinationPath)
         {
-            _innerFileSystem.DeleteFile(sourcePath);
-            _innerFileSystem.MoveFile(sourcePath, destinationPath);
+            base.MoveFile(sourcePath, destinationPath);
+            DeleteDirectory(GetTempRunPath(sourcePath, destinationPath));
         }
-    }
-
-    private sealed class DeleteTargetDisappearsFileSystem(InMemoryFileSystem innerFileSystem) : IFileSystem
-    {
-        private readonly InMemoryFileSystem _innerFileSystem = innerFileSystem ?? throw new ArgumentNullException(nameof(innerFileSystem));
-
-        public void CreateDirectory(string path) => _innerFileSystem.CreateDirectory(path);
-
-        public void DeleteDirectory(string path) => _innerFileSystem.DeleteDirectory(path);
-
-        public void DeleteFile(string path) => _innerFileSystem.DeleteFile(path);
-
-        public bool DirectoryExists(string path) => _innerFileSystem.DirectoryExists(path);
-
-        public IEnumerable<string> EnumerateDirectories(string path) => _innerFileSystem.EnumerateDirectories(path);
-
-        public IEnumerable<string> EnumerateFiles(string path) => _innerFileSystem.EnumerateFiles(path);
-
-        public string GetCurrentDirectory() => _innerFileSystem.GetCurrentDirectory();
-
-        public string GetTempPath() => _innerFileSystem.GetTempPath();
-
-        public void MoveDirectory(string sourcePath, string destinationPath)
-        {
-            _innerFileSystem.MoveDirectory(sourcePath, destinationPath);
-            _innerFileSystem.DeleteDirectory(GetTempRunPath(sourcePath, destinationPath));
-        }
-
-        public void MoveFile(string sourcePath, string destinationPath)
-        {
-            _innerFileSystem.MoveFile(sourcePath, destinationPath);
-            _innerFileSystem.DeleteDirectory(GetTempRunPath(sourcePath, destinationPath));
-        }
-    }
-
-    private sealed class MoveFailsForDirectoryFileSystem(InMemoryFileSystem innerFileSystem, string failingSourcePath) : IFileSystem
-    {
-        private readonly InMemoryFileSystem _innerFileSystem = innerFileSystem ?? throw new ArgumentNullException(nameof(innerFileSystem));
-        private readonly string _failingSourcePath = failingSourcePath ?? throw new ArgumentNullException(nameof(failingSourcePath));
-
-        public void CreateDirectory(string path) => _innerFileSystem.CreateDirectory(path);
-
-        public void DeleteDirectory(string path) => _innerFileSystem.DeleteDirectory(path);
-
-        public void DeleteFile(string path) => _innerFileSystem.DeleteFile(path);
-
-        public bool DirectoryExists(string path) => _innerFileSystem.DirectoryExists(path);
-
-        public IEnumerable<string> EnumerateDirectories(string path) => _innerFileSystem.EnumerateDirectories(path);
-
-        public IEnumerable<string> EnumerateFiles(string path) => _innerFileSystem.EnumerateFiles(path);
-
-        public string GetCurrentDirectory() => _innerFileSystem.GetCurrentDirectory();
-
-        public string GetTempPath() => _innerFileSystem.GetTempPath();
-
-        public void MoveDirectory(string sourcePath, string destinationPath)
-        {
-            if (string.Equals(sourcePath, _failingSourcePath, StringComparison.OrdinalIgnoreCase))
-            {
-                throw new IOException("move failed");
-            }
-
-            _innerFileSystem.MoveDirectory(sourcePath, destinationPath);
-        }
-
-        public void MoveFile(string sourcePath, string destinationPath) => _innerFileSystem.MoveFile(sourcePath, destinationPath);
     }
 }

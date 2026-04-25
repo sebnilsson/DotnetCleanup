@@ -28,7 +28,7 @@ public class InMemoryFileSystem(string[]? directories = null, string[]? files = 
 
     public Dictionary<string, Exception> DeleteFileExceptions { get; } = new(StringComparer.OrdinalIgnoreCase);
 
-    public void CreateDirectory(string path)
+    public virtual void CreateDirectory(string path)
     {
         lock (_fileSystemLock)
         {
@@ -36,7 +36,7 @@ public class InMemoryFileSystem(string[]? directories = null, string[]? files = 
         }
     }
 
-    public void DeleteDirectory(string path)
+    public virtual void DeleteDirectory(string path)
     {
         lock (_fileSystemLock)
         {
@@ -58,7 +58,7 @@ public class InMemoryFileSystem(string[]? directories = null, string[]? files = 
         }
     }
 
-    public void DeleteFile(string path)
+    public virtual void DeleteFile(string path)
     {
         lock (_fileSystemLock)
         {
@@ -72,7 +72,7 @@ public class InMemoryFileSystem(string[]? directories = null, string[]? files = 
         }
     }
 
-    public bool DirectoryExists(string path)
+    public virtual bool DirectoryExists(string path)
     {
         lock (_fileSystemLock)
         {
@@ -80,7 +80,7 @@ public class InMemoryFileSystem(string[]? directories = null, string[]? files = 
         }
     }
 
-    public IEnumerable<string> EnumerateFiles(string path)
+    public virtual IEnumerable<string> EnumerateFiles(string path)
     {
         lock (_fileSystemLock)
         {
@@ -99,7 +99,7 @@ public class InMemoryFileSystem(string[]? directories = null, string[]? files = 
         }
     }
 
-    public IEnumerable<string> EnumerateDirectories(string path)
+    public virtual IEnumerable<string> EnumerateDirectories(string path)
     {
         lock (_fileSystemLock)
         {
@@ -118,17 +118,17 @@ public class InMemoryFileSystem(string[]? directories = null, string[]? files = 
         }
     }
 
-    public string GetCurrentDirectory()
+    public virtual string GetCurrentDirectory()
     {
         return TestPath.CurrentDirectory;
     }
 
-    public string GetTempPath()
+    public virtual string GetTempPath()
     {
         return TestPath.SystemTempPath;
     }
 
-    public void MoveDirectory(string sourcePath, string destinationPath)
+    public virtual void MoveDirectory(string sourcePath, string destinationPath)
     {
         lock (_fileSystemLock)
         {
@@ -176,7 +176,7 @@ public class InMemoryFileSystem(string[]? directories = null, string[]? files = 
         }
     }
 
-    public void MoveFile(string sourcePath, string destinationPath)
+    public virtual void MoveFile(string sourcePath, string destinationPath)
     {
         lock (_fileSystemLock)
         {

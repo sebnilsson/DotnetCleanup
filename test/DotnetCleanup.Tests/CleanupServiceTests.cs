@@ -274,7 +274,7 @@ public sealed class CleanupServiceTests
         // Act
         var result = service.Cleanup(() => true, settings, CancellationToken.None);
         var tempRunPath = GetTempRunPath(fileSystem, settings);
-        var movedBinPath = CombinePath(tempRunPath, "bin");
+        var movedBinPath = TestPath.Combine(tempRunPath, "bin");
 
         // Assert
         var movedPath = Assert.Single(result.MoveStep!.Successes);
@@ -331,10 +331,10 @@ public sealed class CleanupServiceTests
                 Root("projectC"),
                 projectCBinPath,
                 brokenProjectPath,
-                CombinePath(brokenProjectPath, "bin")
+                TestPath.Combine(brokenProjectPath, "bin")
             ]);
 
-        fileSystem.ListDirectoryExceptions.Add(CombinePath(brokenProjectPath, "bin"), new IOException("list failed for path"));
+        fileSystem.ListDirectoryExceptions.Add(TestPath.Combine(brokenProjectPath, "bin"), new IOException("list failed for path"));
         fileSystem.MoveDirectoryExceptions.Add(projectBBinPath, new IOException("move failed for path"));
 
         var service = new CleanupService(fileSystem);
@@ -515,15 +515,17 @@ public sealed class CleanupServiceTests
         // Arrange
         var projectABinPath = Root("projectA", "bin");
         var projectBBinPath = Root("projectB", "bin");
-        var innerFileSystem = CreateFileSystem(
-            directories:
+        var fileSystem = new ThrowsDuringDirectoryEnumerationFileSystem(
             [
+                RootPath,
+                TempPath,
                 Root("projectA"),
                 projectABinPath,
                 Root("projectB"),
                 projectBBinPath
-            ]);
-        var fileSystem = new ThrowsDuringDirectoryEnumerationFileSystem(innerFileSystem, RootPath, new IOException("mid-traversal directory failure"));
+            ],
+            RootPath,
+            new IOException("mid-traversal directory failure"));
         var service = new CleanupService(fileSystem);
         var settings = CreateSettings(fileSystem, include: ["**/bin"]);
 
@@ -754,8 +756,6 @@ public sealed class CleanupServiceTests
 
     private static string Root(params string[] segments) => TestPath.Root(segments);
 
-    private static string CombinePath(string path, params string[] segments) => TestPath.Combine(path, segments);
-
     private static string GetTempRunPrefix(CleanupSettings settings) => CleanupTempPath.GetRunDirectoryPrefix(TempPath, settings.StartedAt);
 
     private static string GetTempRunPath(InMemoryFileSystem fileSystem, CleanupSettings settings)
@@ -768,44 +768,25 @@ public sealed class CleanupServiceTests
                 Path.GetRelativePath(TempPath, path).IndexOfAny(['\\', '/']) < 0);
     }
 
-    private sealed class ThrowsDuringDirectoryEnumerationFileSystem(InMemoryFileSystem innerFileSystem, string failingPath, Exception exception) : IFileSystem
+    private sealed class ThrowsDuringDirectoryEnumerationFileSystem(string[] directories, string failingPath, Exception exception) : InMemoryFileSystem(directories)
     {
-        private readonly InMemoryFileSystem _innerFileSystem = innerFileSystem ?? throw new ArgumentNullException(nameof(innerFileSystem));
         private readonly Exception _exception = exception ?? throw new ArgumentNullException(nameof(exception));
         private readonly string _failingPath = failingPath ?? throw new ArgumentNullException(nameof(failingPath));
         private bool _hasThrown;
 
-        public void CreateDirectory(string path) => _innerFileSystem.CreateDirectory(path);
-
-        public void DeleteDirectory(string path) => _innerFileSystem.DeleteDirectory(path);
-
-        public void DeleteFile(string path) => _innerFileSystem.DeleteFile(path);
-
-        public bool DirectoryExists(string path) => _innerFileSystem.DirectoryExists(path);
-
-        public IEnumerable<string> EnumerateDirectories(string path)
+        public override IEnumerable<string> EnumerateDirectories(string path)
         {
             if (_hasThrown || !string.Equals(path, _failingPath, StringComparison.OrdinalIgnoreCase))
             {
-                return _innerFileSystem.EnumerateDirectories(path);
+                return base.EnumerateDirectories(path);
             }
 
             return EnumerateDirectoriesWithFailure(path);
         }
 
-        public IEnumerable<string> EnumerateFiles(string path) => _innerFileSystem.EnumerateFiles(path);
-
-        public string GetCurrentDirectory() => _innerFileSystem.GetCurrentDirectory();
-
-        public string GetTempPath() => _innerFileSystem.GetTempPath();
-
-        public void MoveDirectory(string sourcePath, string destinationPath) => _innerFileSystem.MoveDirectory(sourcePath, destinationPath);
-
-        public void MoveFile(string sourcePath, string destinationPath) => _innerFileSystem.MoveFile(sourcePath, destinationPath);
-
         private IEnumerable<string> EnumerateDirectoriesWithFailure(string path)
         {
-            var directories = _innerFileSystem.EnumerateDirectories(path)
+            var directories = base.EnumerateDirectories(path)
                 .Order(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
 

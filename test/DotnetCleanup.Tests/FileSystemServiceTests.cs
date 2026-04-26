@@ -367,8 +367,8 @@ public sealed class FileSystemServiceTests
                 projectBPath
             ]);
 
-        // projectA enumerates fine, but projectB fails during directory enumeration
-        fileSystem.ListDirectoryExceptions.Add(projectBPath, new IOException("access denied during directory enumeration"));
+        // root enumerates projectA, then fails while yielding projectB
+        fileSystem.YieldDirectoryExceptions.Add(projectBPath, new IOException("access denied during directory enumeration"));
 
         var service = new FileSystemService(fileSystem);
         var settings = CreateSettings(fileSystem);
@@ -379,6 +379,35 @@ public sealed class FileSystemServiceTests
         // Assert
         Assert.Contains(paths, p => p.Value == projectABinPath && p.Exception == null);
         Assert.Contains(paths, p => p.Value == RootPath && p.Exception != null && p.FailedOn == PathFailureStage.List);
+    }
+
+    [Fact]
+    public void GetPaths_WhenDirectoryMatches_DoesNotRecurseIntoMatchedDirectory()
+    {
+        // Arrange
+        var projectPath = Root("projectA");
+        var binPath = Root("projectA", "bin");
+        var nestedBinPath = Root("projectA", "bin", "nested", "bin");
+        var fileSystem = new InMemoryFileSystem(
+            directories:
+            [
+                RootPath,
+                TempPath,
+                projectPath,
+                binPath,
+                Root("projectA", "bin", "nested"),
+                nestedBinPath
+            ]);
+        var service = new FileSystemService(fileSystem);
+        var settings = CreateSettings(fileSystem, include: ["**/bin"]);
+
+        // Act
+        var paths = service.GetPaths(settings, CancellationToken.None).ToArray();
+
+        // Assert
+        var path = Assert.Single(paths);
+        Assert.Equal(binPath, path.Value);
+        Assert.DoesNotContain(paths, x => x.Value == nestedBinPath);
     }
 
     private static CleanupSettings CreateSettings(IFileSystem fileSystem, string[]? include = null)

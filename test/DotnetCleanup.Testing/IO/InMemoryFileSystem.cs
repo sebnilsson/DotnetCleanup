@@ -22,6 +22,10 @@ public class InMemoryFileSystem(string[]? directories = null, string[]? files = 
 
     public Dictionary<string, Exception> ListFileExceptions { get; } = new(s_pathComparer);
 
+    public Dictionary<string, Exception> YieldDirectoryExceptions { get; } = new(s_pathComparer);
+
+    public Dictionary<string, Exception> YieldFileExceptions { get; } = new(s_pathComparer);
+
     public Dictionary<string, Exception> MoveDirectoryExceptions { get; } = new(s_pathComparer);
 
     public Dictionary<string, Exception> MoveFileExceptions { get; } = new(s_pathComparer);
@@ -97,7 +101,7 @@ public class InMemoryFileSystem(string[]? directories = null, string[]? files = 
                 .Order(s_pathComparer)
                 .ToArray();
 
-            return EnumerateChildren(files, ListFileExceptions);
+            return EnumerateChildren(files, YieldFileExceptions);
         }
     }
 
@@ -116,7 +120,7 @@ public class InMemoryFileSystem(string[]? directories = null, string[]? files = 
                 .Order(s_pathComparer)
                 .ToArray();
 
-            return EnumerateChildren(directories, ListDirectoryExceptions);
+            return EnumerateChildren(directories, YieldDirectoryExceptions);
         }
     }
 
@@ -150,6 +154,10 @@ public class InMemoryFileSystem(string[]? directories = null, string[]? files = 
             if (directoriesToMove.Length == 0)
             {
                 throw new DirectoryNotFoundException($"Could not find a part of the path '{normalizedSourcePath}'.");
+            }
+            if (Directories.Contains(normalizedDestinationPath) || Files.Contains(normalizedDestinationPath))
+            {
+                throw new IOException($"Cannot create '{normalizedDestinationPath}' because a file or directory with the same name already exists.");
             }
 
             var filesToMove = Files
@@ -188,12 +196,18 @@ public class InMemoryFileSystem(string[]? directories = null, string[]? files = 
                 throw exception;
             }
 
+            var normalizedDestinationPath = NormalizePath(destinationPath);
+            if (Files.Contains(normalizedDestinationPath) || Directories.Contains(normalizedDestinationPath))
+            {
+                throw new IOException($"Cannot create '{normalizedDestinationPath}' because a file or directory with the same name already exists.");
+            }
+
             if (!Files.Remove(normalizedSourcePath))
             {
                 throw new FileNotFoundException($"Could not find file '{normalizedSourcePath}'.", normalizedSourcePath);
             }
 
-            Files.Add(NormalizePath(destinationPath));
+            Files.Add(normalizedDestinationPath);
         }
     }
 

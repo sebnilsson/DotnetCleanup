@@ -187,6 +187,8 @@ public sealed class CleanupCommandComponentTests
         // Assert
         Assert.Equal(0, result.ExitCode);
         Assert.DoesNotContain(Root("projectA", "bin"), fileSystem.Directories, TestPath.PathComparer);
+        Assert.DoesNotContain("Proceed with the cleanup?", result.Output, StringComparison.Ordinal);
+        Assert.Contains("Cleanup process completed", result.Output, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -218,6 +220,38 @@ public sealed class CleanupCommandComponentTests
         Assert.Equal(0, result.ExitCode);
         Assert.Contains(Root("projectA", "bin"), fileSystem.Directories, TestPath.PathComparer);
         Assert.Contains(Root("projectA", "obj"), fileSystem.Directories, TestPath.PathComparer);
+        Assert.Contains("Cleanup canceled by user", result.Output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Run_WithDetailedNoopAndNoMatches_WritesNoMatchingPathsFound()
+    {
+        // Arrange
+        var fileSystem = new InMemoryFileSystem(
+            directories:
+            [
+                RootPath,
+                TempPath,
+                Root("projectA")
+            ]);
+        var appTester = CreateAppTester(new AppTesterConfig(FileSystem: fileSystem));
+
+        // Act
+        var result = appTester.Run(
+            [
+                RootPath,
+                "--temp-path", TempPath,
+                "-p", "**/bin",
+                "-y",
+                "--noop",
+                "--verbosity", "detailed"
+            ]);
+
+        // Assert
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("Finding paths", result.Output, StringComparison.Ordinal);
+        Assert.Contains("No matching paths found", result.Output, StringComparison.Ordinal);
+        Assert.Contains("Cleanup process completed", result.Output, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -330,6 +364,7 @@ public sealed class CleanupCommandComponentTests
         // Assert
         Assert.Equal(0, result.ExitCode);
         Assert.Contains(binPath, fileSystem.Directories, TestPath.PathComparer);
+        Assert.Contains("Error moving path", result.Output, StringComparison.Ordinal);
     }
 
     [Fact]

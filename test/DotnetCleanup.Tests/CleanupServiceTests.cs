@@ -334,7 +334,7 @@ public sealed class CleanupServiceTests
                 TestPath.Combine(brokenProjectPath, "bin")
             ]);
 
-        fileSystem.ListDirectoryExceptions.Add(TestPath.Combine(brokenProjectPath, "bin"), new IOException("list failed for path"));
+        fileSystem.YieldDirectoryExceptions.Add(TestPath.Combine(brokenProjectPath, "bin"), new IOException("list failed for path"));
         fileSystem.MoveDirectoryExceptions.Add(projectBBinPath, new IOException("move failed for path"));
 
         var service = new CleanupService(fileSystem);

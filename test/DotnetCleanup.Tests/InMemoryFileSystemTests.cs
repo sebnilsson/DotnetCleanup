@@ -41,4 +41,38 @@ public sealed class InMemoryFileSystemTests
             Assert.Throws<DirectoryNotFoundException>(act);
         }
     }
+
+    [Fact]
+    public void MoveDirectory_WhenDestinationExists_ThrowsIOExceptionAndLeavesSource()
+    {
+        // Arrange
+        var sourcePath = TestPath.Root("Project");
+        var destinationPath = TestPath.Temp("Project");
+        var fileSystem = new InMemoryFileSystem(directories: [sourcePath, destinationPath]);
+
+        // Act
+        var act = () => fileSystem.MoveDirectory(sourcePath, destinationPath);
+
+        // Assert
+        Assert.Throws<IOException>(act);
+        Assert.Contains(sourcePath, fileSystem.Directories, TestPath.PathComparer);
+        Assert.Contains(destinationPath, fileSystem.Directories, TestPath.PathComparer);
+    }
+
+    [Fact]
+    public void MoveFile_WhenDestinationExists_ThrowsIOExceptionAndLeavesSource()
+    {
+        // Arrange
+        var sourcePath = TestPath.Root("Project", "build.log");
+        var destinationPath = TestPath.Temp("Project", "build.log");
+        var fileSystem = new InMemoryFileSystem(files: [sourcePath, destinationPath]);
+
+        // Act
+        var act = () => fileSystem.MoveFile(sourcePath, destinationPath);
+
+        // Assert
+        Assert.Throws<IOException>(act);
+        Assert.Contains(sourcePath, fileSystem.Files, TestPath.PathComparer);
+        Assert.Contains(destinationPath, fileSystem.Files, TestPath.PathComparer);
+    }
 }

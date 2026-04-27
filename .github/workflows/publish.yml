@@ -1,16 +1,29 @@
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
 
 name: Publish to NuGet
+
 on:
-  workflow_dispatch: # Allow running the workflow manually from the GitHub UI
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'SemVer package version, with or without v prefix.'
+        required: true
+        type: string
   push:
-    branches:
-      - 'main'     # Run the workflow when pushing to the main branch
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
   DOTNET_NOLOGO: true
-  NuGetDirectory: ${{ github.workspace}}/nuget
+  NuGetDirectory: ${{ github.workspace }}/nuget
 
 defaults:
   run:
@@ -26,18 +39,64 @@ jobs:
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
+      with:
+        global-json-file: global.json
+
+    - name: Resolve Package Version
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+      run: |
+        $rawVersion = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { $env:INPUT_VERSION }
+        $versionPattern = '^(?:v)?(?<version>(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?)$'
+
+        if ($env:GITHUB_REF_TYPE -eq 'tag' -and -not $rawVersion.StartsWith('v', [System.StringComparison]::Ordinal)) {
+          throw "Publish tags must use v-prefixed SemVer, for example v1.2.3. Got '$rawVersion'."
+        }
+
+        if ($rawVersion -notmatch $versionPattern) {
+          throw "Version '$rawVersion' is not valid SemVer. Use v1.2.3, v1.2.3-beta.1, or v1.2.3+build.5."
+        }
+
+        $packageVersion = $Matches['version']
+        "PackageVersion=$packageVersion" >> $env:GITHUB_ENV
+        "Resolved package version: $packageVersion" >> $env:GITHUB_STEP_SUMMARY
+
+    - name: Docker Info
+      run: docker version && docker info
 
     - name: .NET Restore
       run: dotnet restore
 
     - name: .NET Build
-      run: dotnet build --no-restore --configuration Release
+      run: >
+        dotnet build --no-restore --configuration Release
+        -p:Version=$env:PackageVersion
+        -p:PackageVersion=$env:PackageVersion
+        -p:InformationalVersion=$env:PackageVersion
+        -p:ContinuousIntegrationBuild=true
 
     - name: .NET Test
-      run: dotnet test --no-restore --configuration Release
+      run: dotnet test --no-restore --no-build --configuration Release --verbosity normal --logger trx --results-directory TestResults
+
+    - name: Upload Test Results
+      if: ${{ always() }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results
+        path: TestResults/**/*.trx
+        if-no-files-found: ignore
 
     - name: .NET Pack
-      run: dotnet pack --no-restore --configuration Release --output ${{ env.NuGetDirectory }}
+      run: >
+        dotnet pack src/DotnetCleanup/DotnetCleanup.csproj
+        --no-restore
+        --no-build
+        --configuration Release
+        --output ${{ env.NuGetDirectory }}
+        -p:Version=$env:PackageVersion
+        -p:PackageVersion=$env:PackageVersion
+        -p:InformationalVersion=$env:PackageVersion
+        -p:ContinuousIntegrationBuild=true
 
     - name: NuGet Push
-      run: dotnet nuget push ${{ env.NuGetDirectory }}/*.nupkg  --api-key ${{ secrets.NUGET_APIKEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+      run: dotnet nuget push ${{ env.NuGetDirectory }}/*.nupkg --api-key ${{ secrets.NUGET_APIKEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate

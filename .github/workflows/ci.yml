@@ -46,7 +46,7 @@ jobs:
       run: dotnet build --no-restore --configuration Release
 
     - name: .NET Test
-      run: dotnet test --no-restore --no-build --configuration Release --verbosity minimal --logger trx --results-directory TestResults
+      run: dotnet test --no-restore --no-build --configuration Release --verbosity normal --logger trx --results-directory TestResults
 
     - name: Upload Test Results
       if: ${{ always() }}

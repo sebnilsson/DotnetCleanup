@@ -43,6 +43,7 @@ jobs:
         global-json-file: global.json
 
     - name: Resolve Package Version
+      id: version
       env:
         INPUT_VERSION: ${{ inputs.version }}
       run: |
@@ -59,32 +60,17 @@ jobs:
 
         $packageVersion = $Matches['version']
         "PackageVersion=$packageVersion" >> $env:GITHUB_ENV
+        "package-version=$packageVersion" >> $env:GITHUB_OUTPUT
         "Resolved package version: $packageVersion" >> $env:GITHUB_STEP_SUMMARY
 
-    - name: Docker Info
-      run: docker version && docker info
-
-    - name: .NET Restore
-      run: dotnet restore
-
-    - name: .NET Build
-      run: >
-        dotnet build --no-restore --configuration Release
-        -p:Version=$env:PackageVersion
-        -p:PackageVersion=$env:PackageVersion
-        -p:InformationalVersion=$env:PackageVersion
-        -p:ContinuousIntegrationBuild=true
-
-    - name: .NET Test
-      run: dotnet test --no-restore --no-build --configuration Release --verbosity normal --logger trx --results-directory TestResults
-
-    - name: Upload Test Results
-      if: ${{ always() }}
-      uses: actions/upload-artifact@v4
+    - name: .NET Build and Test
+      uses: ./.github/actions/dotnet-build-test
       with:
-        name: test-results
-        path: TestResults/**/*.trx
-        if-no-files-found: ignore
+        msbuild-properties: >
+          -p:Version=${{ steps.version.outputs.package-version }}
+          -p:PackageVersion=${{ steps.version.outputs.package-version }}
+          -p:InformationalVersion=${{ steps.version.outputs.package-version }}
+          -p:ContinuousIntegrationBuild=true
 
     - name: .NET Pack
       run: >

@@ -36,22 +36,5 @@ jobs:
       with:
         global-json-file: global.json
 
-    - name: Docker Info
-      run: docker version && docker info
-
-    - name: .NET Restore
-      run: dotnet restore
-
-    - name: .NET Build
-      run: dotnet build --no-restore --configuration Release
-
-    - name: .NET Test
-      run: dotnet test --no-restore --no-build --configuration Release --verbosity normal --logger trx --results-directory TestResults
-
-    - name: Upload Test Results
-      if: ${{ always() }}
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-results
-        path: TestResults/**/*.trx
-        if-no-files-found: ignore
+    - name: .NET Build and Test
+      uses: ./.github/actions/dotnet-build-test

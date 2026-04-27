@@ -1,0 +1,41 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+
+name: .NET Build and Test
+description: Restore, build, and test the repository with Docker-backed integration tests.
+
+inputs:
+  msbuild-properties:
+    description: Additional MSBuild properties passed to build.
+    required: false
+    default: ''
+  test-results-name:
+    description: Test result artifact name.
+    required: false
+    default: test-results
+
+runs:
+  using: composite
+  steps:
+  - name: Docker Info
+    shell: pwsh
+    run: docker version && docker info
+
+  - name: .NET Restore
+    shell: pwsh
+    run: dotnet restore
+
+  - name: .NET Build
+    shell: pwsh
+    run: dotnet build --no-restore --configuration Release ${{ inputs.msbuild-properties }}
+
+  - name: .NET Test
+    shell: pwsh
+    run: dotnet test --no-restore --no-build --configuration Release --verbosity normal --logger trx --results-directory TestResults
+
+  - name: Upload Test Results
+    if: ${{ always() }}
+    uses: actions/upload-artifact@v4
+    with:
+      name: ${{ inputs.test-results-name }}
+      path: TestResults/**/*.trx
+      if-no-files-found: ignore

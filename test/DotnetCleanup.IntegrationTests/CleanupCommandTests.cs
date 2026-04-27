@@ -1,7 +1,6 @@
 ﻿using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Configurations;
 using DotNet.Testcontainers.Containers;
-using DotnetCleanup;
 using Xunit;
 
 namespace DotnetCleanup.IntegrationTests;
@@ -14,6 +13,7 @@ public sealed class CleanupCommandTests
         // Arrange
         await using var workspace = await ProcessTestWorkspace.CreateAsync(TestContext.Current.CancellationToken);
         var binPath = await workspace.CreateRootDirectoryAsync(["projectA", "bin"], TestContext.Current.CancellationToken);
+        var buildOutputPath = await workspace.CreateRootFileAsync(["projectA", "bin", "app.dll"], TestContext.Current.CancellationToken);
 
         // Act
         var result = await RunAppAsync(
@@ -29,6 +29,7 @@ public sealed class CleanupCommandTests
         // Assert
         Assert.Equal(0, result.ExitCode);
         Assert.True(await workspace.DirectoryExistsAsync(binPath, TestContext.Current.CancellationToken));
+        Assert.True(await workspace.FileExistsAsync(buildOutputPath, TestContext.Current.CancellationToken));
         Assert.Empty(await workspace.GetTempRunDirectoriesAsync(TestContext.Current.CancellationToken));
         Assert.Equal(string.Empty, result.Error);
     }
@@ -39,6 +40,7 @@ public sealed class CleanupCommandTests
         // Arrange
         await using var workspace = await ProcessTestWorkspace.CreateAsync(TestContext.Current.CancellationToken);
         var binPath = await workspace.CreateRootDirectoryAsync(["projectA", "bin"], TestContext.Current.CancellationToken);
+        await workspace.CreateRootFileAsync(["projectA", "bin", "app.dll"], TestContext.Current.CancellationToken);
 
         // Act
         var result = await RunAppAsync(
@@ -56,6 +58,7 @@ public sealed class CleanupCommandTests
 
         Assert.False(await workspace.DirectoryExistsAsync(binPath, TestContext.Current.CancellationToken));
         Assert.True(await workspace.DirectoryExistsAsync(workspace.Combine(tempRunPath, "projectA", "bin"), TestContext.Current.CancellationToken));
+        Assert.True(await workspace.FileExistsAsync(workspace.Combine(tempRunPath, "projectA", "bin", "app.dll"), TestContext.Current.CancellationToken));
         Assert.Equal(string.Empty, result.Error);
     }
 
@@ -65,6 +68,7 @@ public sealed class CleanupCommandTests
         // Arrange
         await using var workspace = await ProcessTestWorkspace.CreateAsync(TestContext.Current.CancellationToken);
         var binPath = await workspace.CreateRootDirectoryAsync(["project[1]", "bin"], TestContext.Current.CancellationToken);
+        var buildOutputPath = await workspace.CreateRootFileAsync(["project[1]", "bin", "app.dll"], TestContext.Current.CancellationToken);
 
         // Act
         var result = await RunAppAsync(
@@ -80,6 +84,32 @@ public sealed class CleanupCommandTests
         // Assert
         Assert.Equal(0, result.ExitCode);
         Assert.False(await workspace.DirectoryExistsAsync(binPath, TestContext.Current.CancellationToken));
+        Assert.False(await workspace.FileExistsAsync(buildOutputPath, TestContext.Current.CancellationToken));
+        Assert.Empty(await workspace.GetTempRunDirectoriesAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(string.Empty, result.Error);
+    }
+
+    [Fact]
+    public async Task Run_WithFilePattern_DeletesMatchedFile()
+    {
+        // Arrange
+        await using var workspace = await ProcessTestWorkspace.CreateAsync(TestContext.Current.CancellationToken);
+        var cachePath = await workspace.CreateRootFileAsync(["projectA", "obj", "project.assets.json"], TestContext.Current.CancellationToken);
+
+        // Act
+        var result = await RunAppAsync(
+            workspace,
+            [
+                workspace.RootPath,
+                "--temp-path", workspace.TempPath,
+                "-p", "**/*.json",
+                "-y",
+                "--verbosity", "detailed"
+            ]);
+
+        // Assert
+        Assert.Equal(0, result.ExitCode);
+        Assert.False(await workspace.FileExistsAsync(cachePath, TestContext.Current.CancellationToken));
         Assert.Empty(await workspace.GetTempRunDirectoriesAsync(TestContext.Current.CancellationToken));
         Assert.Equal(string.Empty, result.Error);
     }
@@ -89,6 +119,7 @@ public sealed class CleanupCommandTests
     {
         // Arrange
         await using var workspace = await ProcessTestWorkspace.CreateAsync(TestContext.Current.CancellationToken);
+        await workspace.CreateRootFileAsync(["projectA", "bin", "app.dll"], TestContext.Current.CancellationToken);
         var missingPath = workspace.Combine(workspace.RootPath, "missing-root");
 
         // Act
@@ -167,6 +198,19 @@ public sealed class CleanupCommandTests
             return path;
         }
 
+        public async Task<string> CreateRootFileAsync(string[] segments, CancellationToken cancellationToken)
+        {
+            var path = Combine([RootPath, .. segments]);
+            var directoryPath = Combine([RootPath, .. segments[..^1]]);
+
+            await ExecShellAsync(
+                $"mkdir -p -- {Quote(directoryPath)} && printf %s {Quote("integration-test")} > {Quote(path)}",
+                cancellationToken)
+                .ConfigureAwait(false);
+
+            return path;
+        }
+
         public async Task<ProcessResult> RunAppAsync(string[] args, CancellationToken cancellationToken)
         {
             var appCommand = string.Join(
@@ -182,6 +226,12 @@ public sealed class CleanupCommandTests
         public async Task<bool> DirectoryExistsAsync(string path, CancellationToken cancellationToken)
         {
             var result = await ExecShellAsync($"test -d {Quote(path)}", cancellationToken).ConfigureAwait(false);
+            return result.ExitCode == 0;
+        }
+
+        public async Task<bool> FileExistsAsync(string path, CancellationToken cancellationToken)
+        {
+            var result = await ExecShellAsync($"test -f {Quote(path)}", cancellationToken).ConfigureAwait(false);
             return result.ExitCode == 0;
         }
 

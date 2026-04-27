@@ -1,7 +1,7 @@
 ﻿using DotnetCleanup.Cli;
 using DotnetCleanup.IO;
 using DotnetCleanup.Spectre;
-using DotnetCleanup.Testing.IO;
+using DotnetCleanup.Tests.IO;
 using Spectre.Console;
 using Spectre.Console.Cli.Testing;
 using Spectre.Console.Testing;

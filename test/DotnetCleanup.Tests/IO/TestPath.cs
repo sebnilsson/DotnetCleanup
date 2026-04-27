@@ -1,6 +1,6 @@
 ﻿using DotnetCleanup.IO;
 
-namespace DotnetCleanup.Testing.IO;
+namespace DotnetCleanup.Tests.IO;
 
 public static class TestPath
 {

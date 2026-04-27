@@ -1,4 +1,6 @@
-﻿using System.Diagnostics;
+﻿using DotNet.Testcontainers.Builders;
+using DotNet.Testcontainers.Configurations;
+using DotNet.Testcontainers.Containers;
 using DotnetCleanup;
 using Xunit;
 
@@ -10,12 +12,12 @@ public sealed class CleanupCommandTests
     public async Task Run_WithYesAndNoop_LeavesMatchedDirectoryUntouched()
     {
         // Arrange
-        using var workspace = new ProcessTestWorkspace();
-        var binPath = workspace.CreateRootDirectory("projectA", "bin");
+        await using var workspace = await ProcessTestWorkspace.CreateAsync(TestContext.Current.CancellationToken);
+        var binPath = await workspace.CreateRootDirectoryAsync(["projectA", "bin"], TestContext.Current.CancellationToken);
 
         // Act
         var result = await RunAppAsync(
-            workspace.RootPath,
+            workspace,
             [
                 workspace.RootPath,
                 "--temp-path", workspace.TempPath,
@@ -26,8 +28,8 @@ public sealed class CleanupCommandTests
 
         // Assert
         Assert.Equal(0, result.ExitCode);
-        Assert.True(Directory.Exists(binPath));
-        Assert.Empty(workspace.GetTempRunDirectories());
+        Assert.True(await workspace.DirectoryExistsAsync(binPath, TestContext.Current.CancellationToken));
+        Assert.Empty(await workspace.GetTempRunDirectoriesAsync(TestContext.Current.CancellationToken));
         Assert.Equal(string.Empty, result.Error);
     }
 
@@ -35,12 +37,12 @@ public sealed class CleanupCommandTests
     public async Task Run_WithoutPathArgument_UsesCurrentDirectoryAndLeavesStagedPathsWhenNoDelete()
     {
         // Arrange
-        using var workspace = new ProcessTestWorkspace();
-        var binPath = workspace.CreateRootDirectory("projectA", "bin");
+        await using var workspace = await ProcessTestWorkspace.CreateAsync(TestContext.Current.CancellationToken);
+        var binPath = await workspace.CreateRootDirectoryAsync(["projectA", "bin"], TestContext.Current.CancellationToken);
 
         // Act
         var result = await RunAppAsync(
-            workspace.RootPath,
+            workspace,
             [
                 "--temp-path", workspace.TempPath,
                 "-p", "**/bin",
@@ -50,10 +52,10 @@ public sealed class CleanupCommandTests
 
         // Assert
         Assert.Equal(0, result.ExitCode);
-        var tempRunPath = Assert.Single(workspace.GetTempRunDirectories());
+        var tempRunPath = Assert.Single(await workspace.GetTempRunDirectoriesAsync(TestContext.Current.CancellationToken));
 
-        Assert.DoesNotContain(binPath, Directory.GetDirectories(workspace.RootPath, "*", SearchOption.AllDirectories), StringComparer.OrdinalIgnoreCase);
-        Assert.True(Directory.Exists(Path.Combine(tempRunPath, "projectA", "bin")));
+        Assert.False(await workspace.DirectoryExistsAsync(binPath, TestContext.Current.CancellationToken));
+        Assert.True(await workspace.DirectoryExistsAsync(workspace.Combine(tempRunPath, "projectA", "bin"), TestContext.Current.CancellationToken));
         Assert.Equal(string.Empty, result.Error);
     }
 
@@ -61,12 +63,12 @@ public sealed class CleanupCommandTests
     public async Task Run_WithBracketedPaths_DeletesMatchedDirectory()
     {
         // Arrange
-        using var workspace = new ProcessTestWorkspace();
-        var binPath = workspace.CreateRootDirectory("project[1]", "bin");
+        await using var workspace = await ProcessTestWorkspace.CreateAsync(TestContext.Current.CancellationToken);
+        var binPath = await workspace.CreateRootDirectoryAsync(["project[1]", "bin"], TestContext.Current.CancellationToken);
 
         // Act
         var result = await RunAppAsync(
-            workspace.RootPath,
+            workspace,
             [
                 workspace.RootPath,
                 "--temp-path", workspace.TempPath,
@@ -77,8 +79,8 @@ public sealed class CleanupCommandTests
 
         // Assert
         Assert.Equal(0, result.ExitCode);
-        Assert.False(Directory.Exists(binPath));
-        Assert.Empty(workspace.GetTempRunDirectories());
+        Assert.False(await workspace.DirectoryExistsAsync(binPath, TestContext.Current.CancellationToken));
+        Assert.Empty(await workspace.GetTempRunDirectoriesAsync(TestContext.Current.CancellationToken));
         Assert.Equal(string.Empty, result.Error);
     }
 
@@ -86,12 +88,12 @@ public sealed class CleanupCommandTests
     public async Task Run_NonExistingRootPath_ReturnsErrorResult()
     {
         // Arrange
-        using var workspace = new ProcessTestWorkspace();
-        var missingPath = Path.Combine(workspace.RootPath, "missing-root");
+        await using var workspace = await ProcessTestWorkspace.CreateAsync(TestContext.Current.CancellationToken);
+        var missingPath = workspace.Combine(workspace.RootPath, "missing-root");
 
         // Act
         var result = await RunAppAsync(
-            workspace.RootPath,
+            workspace,
             [
                 missingPath,
                 "--temp-path", workspace.TempPath,
@@ -104,96 +106,126 @@ public sealed class CleanupCommandTests
         Assert.Equal(string.Empty, result.Error);
     }
 
-    private static string ApplicationPath => typeof(CleanupService).Assembly.Location;
+    private static string ApplicationDirectory => Path.GetDirectoryName(typeof(CleanupService).Assembly.Location)
+        ?? throw new InvalidOperationException("Unable to locate application output directory.");
 
-    private static async Task<ProcessResult> RunAppAsync(string workingDirectory, string[] args)
+    private static async Task<ProcessResult> RunAppAsync(ProcessTestWorkspace workspace, string[] args)
     {
-        using var process = new Process();
-        process.StartInfo = new ProcessStartInfo
-        {
-            FileName = "dotnet",
-            RedirectStandardError = true,
-            RedirectStandardInput = true,
-            RedirectStandardOutput = true,
-            UseShellExecute = false,
-            WorkingDirectory = workingDirectory
-        };
-
-        process.StartInfo.EnvironmentVariables["NO_COLOR"] = "1";
-        process.StartInfo.ArgumentList.Add(ApplicationPath);
-
-        foreach (var arg in args)
-        {
-            process.StartInfo.ArgumentList.Add(arg);
-        }
-
-        process.Start();
-        process.StandardInput.Close();
-
-        var outputTask = process.StandardOutput.ReadToEndAsync();
-        var errorTask = process.StandardError.ReadToEndAsync();
-
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-        await process.WaitForExitAsync(timeout.Token);
-
-        return new ProcessResult(
-            process.ExitCode,
-            await outputTask,
-            await errorTask);
+        return await workspace.RunAppAsync(args, TestContext.Current.CancellationToken).ConfigureAwait(false);
     }
 
-    private sealed record ProcessResult(int ExitCode, string Output, string Error);
+    private sealed record ProcessResult(long ExitCode, string Output, string Error);
 
-    private sealed class ProcessTestWorkspace : IDisposable
+    private sealed class ProcessTestWorkspace : IAsyncDisposable
     {
-        public ProcessTestWorkspace()
-        {
-            BasePath = Path.Combine(
-                Path.GetTempPath(),
-                "DotnetCleanup.IntegrationTests",
-                Guid.NewGuid().ToString("N"));
-            RootPath = Path.Combine(BasePath, "root");
-            TempPath = Path.Combine(BasePath, "temp");
+        public const string ApplicationPath = "/app/DotnetCleanup.dll";
 
-            Directory.CreateDirectory(RootPath);
-            Directory.CreateDirectory(TempPath);
+        private const string AppDirectory = "/app";
+
+        private const string RootDirectory = "/workspace/root";
+
+        private const string TempDirectory = "/workspace/temp";
+
+        private ProcessTestWorkspace(IContainer container)
+        {
+            Container = container;
+            RootPath = RootDirectory;
+            TempPath = TempDirectory;
         }
 
-        public string BasePath { get; }
+        public IContainer Container { get; }
 
         public string RootPath { get; }
 
         public string TempPath { get; }
 
-        public string CreateRootDirectory(params string[] segments)
+        public static async Task<ProcessTestWorkspace> CreateAsync(CancellationToken cancellationToken)
         {
-            var path = Path.Combine([RootPath, .. segments]);
-            Directory.CreateDirectory(path);
+            var container = new ContainerBuilder(DotnetSdkImage)
+                .WithBindMount(ApplicationDirectory, AppDirectory, AccessMode.ReadOnly)
+                .WithEntrypoint("tail")
+                .WithCommand("-f", "/dev/null")
+                .WithEnvironment("NO_COLOR", "1")
+                .WithCleanUp(true)
+                .Build();
+
+            await container.StartAsync(cancellationToken).ConfigureAwait(false);
+
+            var workspace = new ProcessTestWorkspace(container);
+            await workspace.ExecShellAsync(
+                $"mkdir -p -- {Quote(workspace.RootPath)} {Quote(workspace.TempPath)}",
+                cancellationToken)
+                .ConfigureAwait(false);
+
+            return workspace;
+        }
+
+        public async Task<string> CreateRootDirectoryAsync(string[] segments, CancellationToken cancellationToken)
+        {
+            var path = Combine([RootPath, .. segments]);
+            await ExecShellAsync($"mkdir -p -- {Quote(path)}", cancellationToken).ConfigureAwait(false);
             return path;
         }
 
-        public string[] GetTempRunDirectories()
+        public async Task<ProcessResult> RunAppAsync(string[] args, CancellationToken cancellationToken)
         {
-            return Directory.Exists(TempPath)
-                ? Directory.GetDirectories(TempPath, "~dotnetcleanup-*", SearchOption.TopDirectoryOnly)
-                : [];
+            var appCommand = string.Join(
+                " ",
+                new[] { "dotnet", ApplicationPath }
+                    .Concat(args)
+                    .Select(Quote));
+            var result = await ExecShellAsync($"cd {Quote(RootPath)} && exec {appCommand}", cancellationToken).ConfigureAwait(false);
+
+            return new ProcessResult(result.ExitCode.GetValueOrDefault(-1), result.Stdout, result.Stderr);
         }
 
-        public void Dispose()
+        public async Task<bool> DirectoryExistsAsync(string path, CancellationToken cancellationToken)
         {
-            try
+            var result = await ExecShellAsync($"test -d {Quote(path)}", cancellationToken).ConfigureAwait(false);
+            return result.ExitCode == 0;
+        }
+
+        public async Task<string[]> GetTempRunDirectoriesAsync(CancellationToken cancellationToken)
+        {
+            var result = await ExecShellAsync(
+                $"find {Quote(TempPath)} -mindepth 1 -maxdepth 1 -type d -name '~dotnetcleanup-*' -print",
+                cancellationToken)
+                .ConfigureAwait(false);
+
+            if (result.ExitCode != 0)
             {
-                if (Directory.Exists(BasePath))
-                {
-                    Directory.Delete(BasePath, recursive: true);
-                }
+                return [];
             }
-            catch (IOException)
-            {
-            }
-            catch (UnauthorizedAccessException)
-            {
-            }
+
+            return result.Stdout
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        }
+
+        public string Combine(params string[] segments)
+        {
+            var combinedPath = string.Join("/", segments.Select(segment => segment.Trim('/')));
+            return segments[0].StartsWith("/", StringComparison.Ordinal)
+                ? "/" + combinedPath
+                : combinedPath;
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await Container.DisposeAsync().ConfigureAwait(false);
+        }
+
+        private static string DotnetSdkImage =>
+#if NET10_0_OR_GREATER
+            "mcr.microsoft.com/dotnet/sdk:10.0";
+#else
+            "mcr.microsoft.com/dotnet/sdk:9.0";
+#endif
+
+        private static string Quote(string value) => "'" + value.Replace("'", "'\"'\"'", StringComparison.Ordinal) + "'";
+
+        private Task<ExecResult> ExecShellAsync(string command, CancellationToken cancellationToken)
+        {
+            return Container.ExecAsync(["/bin/sh", "-c", command], cancellationToken);
         }
     }
 }

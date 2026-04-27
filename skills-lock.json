@@ -5,6 +5,11 @@
       "source": "aaronontheweb/dotnet-skills",
       "sourceType": "github",
       "computedHash": "d9aa818e5b25a74505ed6678a6d31445bebe4b12ec29c07329c38c574dca0cac"
+    },
+    "testcontainers-integration-tests": {
+      "source": "aaronontheweb/dotnet-skills",
+      "sourceType": "github",
+      "computedHash": "12064a0fbd71dee63df9843ba24d64ddfd02b5da0d6a430d371bdfd3386f201c"
     }
   }
 }

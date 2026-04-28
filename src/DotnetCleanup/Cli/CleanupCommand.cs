@@ -10,7 +10,7 @@ public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
     private readonly IAnsiConsole _console = console ?? throw new ArgumentNullException(nameof(console));
     private readonly CleanupService _service = service ?? throw new ArgumentNullException(nameof(service));
 
-    public override async Task<int> ExecuteAsync(CommandContext context, CleanupSettings settings, CancellationToken cancellationToken)
+    protected override async Task<int> ExecuteAsync(CommandContext context, CleanupSettings settings, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(settings);

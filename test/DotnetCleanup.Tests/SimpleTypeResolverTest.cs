@@ -3,7 +3,7 @@ using Xunit;
 
 namespace DotnetCleanup.Tests;
 
-public sealed class SimpleTypeResolverTests
+public sealed class SimpleTypeResolverTest
 {
     [Fact]
     public void Resolve_NullType_ReturnsNull()
@@ -158,7 +158,7 @@ public sealed class SimpleTypeResolverTests
 
     public class TestService : ITestService;
 
-    public class TestConsumer(SimpleTypeResolverTests.ITestService service)
+    public class TestConsumer(SimpleTypeResolverTest.ITestService service)
     {
         public ITestService Service { get; } = service;
     }

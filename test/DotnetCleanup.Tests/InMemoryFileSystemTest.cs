@@ -3,7 +3,7 @@ using Xunit;
 
 namespace DotnetCleanup.Tests;
 
-public sealed class InMemoryFileSystemTests
+public sealed class InMemoryFileSystemTest
 {
     [Fact]
     public void DirectoryExists_UsesPlatformPathComparison()

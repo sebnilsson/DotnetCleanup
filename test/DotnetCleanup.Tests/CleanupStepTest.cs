@@ -3,7 +3,7 @@ using Xunit;
 
 namespace DotnetCleanup.Tests;
 
-public sealed class CleanupStepTests
+public sealed class CleanupStepTest
 {
     [Fact]
     public void AddSuccess_TreatsCaseInsensitivePathsAsEqual()

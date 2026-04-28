@@ -4,7 +4,7 @@ using Xunit;
 
 namespace DotnetCleanup.Tests;
 
-public sealed class PathInfoTests
+public sealed class PathInfoTest
 {
     [Fact]
     public void Constructor_NormalizesPathValue()

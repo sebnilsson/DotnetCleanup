@@ -5,7 +5,7 @@ using Xunit;
 
 namespace DotnetCleanup.IntegrationTests;
 
-public sealed class CleanupCommandTests
+public sealed class CleanupCommandTest
 {
     [Fact]
     public async Task Run_WithYesAndNoop_LeavesMatchedDirectoryUntouched()
@@ -57,8 +57,8 @@ public sealed class CleanupCommandTests
         var tempRunPath = Assert.Single(await workspace.GetTempRunDirectoriesAsync(TestContext.Current.CancellationToken));
 
         Assert.False(await workspace.DirectoryExistsAsync(binPath, TestContext.Current.CancellationToken));
-        Assert.True(await workspace.DirectoryExistsAsync(workspace.Combine(tempRunPath, "projectA", "bin"), TestContext.Current.CancellationToken));
-        Assert.True(await workspace.FileExistsAsync(workspace.Combine(tempRunPath, "projectA", "bin", "app.dll"), TestContext.Current.CancellationToken));
+        Assert.True(await workspace.DirectoryExistsAsync(ProcessTestWorkspace.Combine(tempRunPath, "projectA", "bin"), TestContext.Current.CancellationToken));
+        Assert.True(await workspace.FileExistsAsync(ProcessTestWorkspace.Combine(tempRunPath, "projectA", "bin", "app.dll"), TestContext.Current.CancellationToken));
         Assert.Equal(string.Empty, result.Error);
     }
 
@@ -120,7 +120,7 @@ public sealed class CleanupCommandTests
         // Arrange
         await using var workspace = await ProcessTestWorkspace.CreateAsync(TestContext.Current.CancellationToken);
         await workspace.CreateRootFileAsync(["projectA", "bin", "app.dll"], TestContext.Current.CancellationToken);
-        var missingPath = workspace.Combine(workspace.RootPath, "missing-root");
+        var missingPath = ProcessTestWorkspace.Combine(workspace.RootPath, "missing-root");
 
         // Act
         var result = await RunAppAsync(
@@ -193,15 +193,15 @@ public sealed class CleanupCommandTests
 
         public async Task<string> CreateRootDirectoryAsync(string[] segments, CancellationToken cancellationToken)
         {
-            var path = Combine([RootPath, .. segments]);
+            var path = ProcessTestWorkspace.Combine([RootPath, .. segments]);
             await ExecShellAsync($"mkdir -p -- {Quote(path)}", cancellationToken).ConfigureAwait(false);
             return path;
         }
 
         public async Task<string> CreateRootFileAsync(string[] segments, CancellationToken cancellationToken)
         {
-            var path = Combine([RootPath, .. segments]);
-            var directoryPath = Combine([RootPath, .. segments[..^1]]);
+            var path = ProcessTestWorkspace.Combine([RootPath, .. segments]);
+            var directoryPath = ProcessTestWorkspace.Combine([RootPath, .. segments[..^1]]);
 
             await ExecShellAsync(
                 $"mkdir -p -- {Quote(directoryPath)} && printf %s {Quote("integration-test")} > {Quote(path)}",
@@ -251,7 +251,7 @@ public sealed class CleanupCommandTests
                 .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         }
 
-        public string Combine(params string[] segments)
+        public static string Combine(params string[] segments)
         {
             var combinedPath = string.Join("/", segments.Select(segment => segment.Trim('/')));
             return segments[0].StartsWith("/", StringComparison.Ordinal)

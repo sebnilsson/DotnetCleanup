@@ -9,7 +9,7 @@ using Xunit;
 
 namespace DotnetCleanup.Tests;
 
-public sealed class CleanupCommandComponentTests
+public sealed class CleanupCommandComponentTest
 {
     public static readonly string RootPath = InMemoryFileSystem.DefaultRootPath;
     public static readonly string TempPath = InMemoryFileSystem.DefaultTempPath;

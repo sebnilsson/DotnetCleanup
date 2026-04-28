@@ -4,7 +4,7 @@ using Xunit;
 
 namespace DotnetCleanup.Tests;
 
-public sealed class CleanupTempPathTests
+public sealed class CleanupTempPathTest
 {
     public static TheoryData<TempPathScenario> TempPathScenarios =>
         new()

@@ -4,7 +4,7 @@ using Xunit;
 
 namespace DotnetCleanup.Tests;
 
-public sealed class PathUtilityTests
+public sealed class PathUtilityTest
 {
     public static TheoryData<PathScenario> RepresentativePathScenarios =>
         new()

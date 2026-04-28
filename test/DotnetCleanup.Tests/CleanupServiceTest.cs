@@ -5,7 +5,7 @@ using Xunit;
 
 namespace DotnetCleanup.Tests;
 
-public sealed class CleanupServiceTests
+public sealed class CleanupServiceTest
 {
     private static readonly string RootPath = InMemoryFileSystem.DefaultRootPath;
     private static readonly string TempPath = InMemoryFileSystem.DefaultTempPath;

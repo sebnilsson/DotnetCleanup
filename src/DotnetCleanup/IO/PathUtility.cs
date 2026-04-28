@@ -6,8 +6,7 @@ public static class PathUtility
 
     public static string? GetNormalizedPath(string? path)
     {
-        var normalized = path?.Replace('\\', s_directorySeparatorChar)
-                .Replace('/', s_directorySeparatorChar);
+        var normalized = path is not null ? NormalizeDirectorySeparators(path) : null;
 
         return !string.IsNullOrWhiteSpace(normalized) ? Path.TrimEndingDirectorySeparator(normalized) : null;
     }
@@ -26,7 +25,15 @@ public static class PathUtility
     public static string? GetRelativePath(string rootPath, string? path)
     {
         return !string.IsNullOrWhiteSpace(path)
-            ? Path.GetRelativePath(rootPath, path).Replace(Path.DirectorySeparatorChar, '/').Replace(Path.AltDirectorySeparatorChar, '/')
+            ? Path.GetRelativePath(NormalizeDirectorySeparators(rootPath), NormalizeDirectorySeparators(path))
+                .Replace(Path.DirectorySeparatorChar, '/')
+                .Replace(Path.AltDirectorySeparatorChar, '/')
             : null;
+    }
+
+    private static string NormalizeDirectorySeparators(string path)
+    {
+        return path.Replace('\\', s_directorySeparatorChar)
+            .Replace('/', s_directorySeparatorChar);
     }
 }

@@ -34,7 +34,7 @@ runs:
 
   - name: Upload Test Results
     if: ${{ always() }}
-    uses: actions/upload-artifact@v4
+    uses: actions/upload-artifact@v6
     with:
       name: ${{ inputs.test-results-name }}
       path: TestResults/**/*.trx

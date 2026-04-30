@@ -1,14 +1,43 @@
-﻿using Spectre.Console;
+﻿using DotnetCleanup.IO;
+using Spectre.Console;
 using Spectre.Console.Cli;
 
 namespace DotnetCleanup.Cli;
 
-public sealed class CleanupCommand(CleanupService service, IAnsiConsole console)
+public sealed class CleanupCommand(CleanupService service, IAnsiConsole console, IFileSystem fileSystem)
     : AsyncCommand<CleanupSettings>
 {
     private static readonly Lock s_consoleWriteLock = new();
     private readonly IAnsiConsole _console = console ?? throw new ArgumentNullException(nameof(console));
+    private readonly IFileSystem _fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
     private readonly CleanupService _service = service ?? throw new ArgumentNullException(nameof(service));
+
+    protected override ValidationResult Validate(CommandContext context, CleanupSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(settings);
+
+        var validationResult = base.Validate(context, settings);
+        if (!validationResult.Successful)
+        {
+            return validationResult;
+        }
+
+        if (settings.Include.Length == 0)
+        {
+            return ValidationResult.Error("At least one include pattern must be specified.");
+        }
+        if (!_fileSystem.DirectoryExists(settings.Path))
+        {
+            return ValidationResult.Error($"The given path does not exist: {settings.Path}");
+        }
+        if (!settings.ShouldSkipMove() && !_fileSystem.DirectoryExists(settings.TempPath))
+        {
+            return ValidationResult.Error($"The given temporary path does not exist: {settings.TempPath}");
+        }
+
+        return ValidationResult.Success();
+    }
 
     protected override async Task<int> ExecuteAsync(CommandContext context, CleanupSettings settings, CancellationToken cancellationToken)
     {

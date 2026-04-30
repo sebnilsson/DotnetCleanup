@@ -1,8 +1,10 @@
-﻿using DotnetCleanup.Cli;
+﻿using System.Reflection;
+using DotnetCleanup.Cli;
 using DotnetCleanup.IO;
 using DotnetCleanup.Spectre;
 using DotnetCleanup.Tests.IO;
 using Spectre.Console;
+using Spectre.Console.Cli;
 using Spectre.Console.Cli.Testing;
 using Spectre.Console.Testing;
 using Xunit;
@@ -13,6 +15,26 @@ public sealed class CleanupCommandComponentTest
 {
     public static readonly string RootPath = InMemoryFileSystem.DefaultRootPath;
     public static readonly string TempPath = InMemoryFileSystem.DefaultTempPath;
+
+    [Fact]
+    public void Validate_WhenIncludeIsEmpty_ReturnsErrorResult()
+    {
+        // Arrange
+        var fileSystem = new InMemoryFileSystem();
+        var command = new CleanupCommand(new CleanupService(fileSystem), new TestConsole(), fileSystem);
+        var settings = new CleanupSettings(fileSystem)
+        {
+            Include = [],
+            SkipConfirm = true
+        };
+
+        // Act
+        var result = InvokeValidate(command, settings);
+
+        // Assert
+        Assert.False(result.Successful);
+        Assert.Equal("At least one include pattern must be specified.", result.Message);
+    }
 
     [Theory]
     [InlineData(true, true, false, true, "--yes", "--what-if", "--no-move")]
@@ -57,16 +79,17 @@ public sealed class CleanupCommandComponentTest
     }
 
     [Fact]
-    public void Run_NonExistingTempPath_WithMoveEnabled_ThrowsDirectoryNotFoundException()
+    public void Run_NonExistingTempPath_WithMoveEnabled_ReturnsErrorResult()
     {
         // Arrange
-        var appTester = CreateAppTester(new AppTesterConfig(Directories: [RootPath], PropagateExceptions: true));
+        var appTester = CreateAppTester(new AppTesterConfig(Directories: [RootPath]));
 
         // Act
-        var exception = Assert.Throws<DirectoryNotFoundException>(() => appTester.Run([RootPath, "--temp-path", TempPath, "-y"]));
+        var result = appTester.Run([RootPath, "--temp-path", TempPath, "-y"]);
 
         // Assert
-        Assert.Equal($"The given temporary path does not exist: {TempPath}", exception.Message);
+        Assert.Equal(-1, result.ExitCode);
+        Assert.Contains($"The given temporary path does not exist: {TempPath}", result.Output, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -428,6 +451,23 @@ public sealed class CleanupCommandComponentTest
 
     private static string Root(params string[] segments) => TestPath.Root(segments);
 
+    private static CommandContext CreateCommandContext()
+    {
+        return new CommandContext([], new EmptyRemainingArguments(), "cleanup", null!);
+    }
+
+    private static ValidationResult InvokeValidate(CleanupCommand command, CleanupSettings settings)
+    {
+        var validateMethod = typeof(CleanupCommand).GetMethod(
+            "Validate",
+            BindingFlags.Instance | BindingFlags.NonPublic,
+            binder: null,
+            types: [typeof(CommandContext), typeof(CleanupSettings)],
+            modifiers: null) ?? throw new MissingMethodException(nameof(CleanupCommand), "Validate");
+
+        return Assert.IsType<ValidationResult>(validateMethod.Invoke(command, [CreateCommandContext(), settings]));
+    }
+
     private static string GetTempRunPrefix(CleanupSettings settings) => CleanupTempPath.GetRunDirectoryPrefix(TempPath, settings.StartedAt);
 
     private static string GetTempRunPath(string sourcePath, string destinationPath)
@@ -490,5 +530,12 @@ public sealed class CleanupCommandComponentTest
             base.MoveFile(sourcePath, destinationPath);
             DeleteDirectoryExceptions.TryAdd(GetTempRunPath(sourcePath, destinationPath), new IOException("delete failed"));
         }
+    }
+
+    private sealed class EmptyRemainingArguments : IRemainingArguments
+    {
+        public ILookup<string, string?> Parsed { get; } = Array.Empty<string?>().ToLookup(_ => string.Empty);
+
+        public IReadOnlyList<string> Raw { get; } = [];
     }
 }

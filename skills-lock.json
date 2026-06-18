@@ -4,11 +4,19 @@
     "modern-csharp-coding-standards": {
       "source": "aaronontheweb/dotnet-skills",
       "sourceType": "github",
-      "computedHash": "d9aa818e5b25a74505ed6678a6d31445bebe4b12ec29c07329c38c574dca0cac"
+      "skillPath": "skills/csharp-coding-standards/SKILL.md",
+      "computedHash": "6cf16abbaf9440a0c22ba94feaebf2cbf00d6a18cfb25ae03f96e59521b0f4cd"
+    },
+    "ponytail": {
+      "source": "dietrichgebert/ponytail",
+      "sourceType": "github",
+      "skillPath": "skills/ponytail/SKILL.md",
+      "computedHash": "15811786f0277b0b4effe6b72cb9f3eaedefd1fe28f43f20aed3d926c10a88b1"
     },
     "testcontainers-integration-tests": {
       "source": "aaronontheweb/dotnet-skills",
       "sourceType": "github",
+      "skillPath": "skills/testcontainers/SKILL.md",
       "computedHash": "12064a0fbd71dee63df9843ba24d64ddfd02b5da0d6a430d371bdfd3386f201c"
     }
   }

@@ -18,7 +18,7 @@ permissions:
 
 concurrency:
   group: publish-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1

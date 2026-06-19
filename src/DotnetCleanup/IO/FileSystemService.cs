@@ -101,24 +101,6 @@ public sealed class FileSystemService(IFileSystem fileSystem)
         return path;
     }
 
-    public void ValidateSettings(CleanupSettings settings)
-    {
-        ArgumentNullException.ThrowIfNull(settings);
-
-        if (settings.Include.Length == 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(settings), "At least one include pattern must be specified.");
-        }
-        if (!_fileSystem.DirectoryExists(settings.Path))
-        {
-            throw new DirectoryNotFoundException($"The given path does not exist: {settings.Path}");
-        }
-        if (!settings.ShouldSkipMove() && !_fileSystem.DirectoryExists(settings.TempPath))
-        {
-            throw new DirectoryNotFoundException($"The given temporary path does not exist: {settings.TempPath}");
-        }
-    }
-
     private void EnsureDirectory(string path)
     {
         if (!string.IsNullOrWhiteSpace(path))

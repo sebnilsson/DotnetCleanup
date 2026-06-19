@@ -31,8 +31,6 @@ public sealed class CleanupService(IFileSystem fileSystem)
         ArgumentNullException.ThrowIfNull(onConfirm);
         ArgumentNullException.ThrowIfNull(settings);
 
-        _fileSystemService.ValidateSettings(settings);
-
         var cleanupResult = new CleanupResult();
 
         ListPaths(cleanupResult, settings, cancellationToken);

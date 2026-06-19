@@ -11,21 +11,6 @@ public sealed class FileSystemServiceTest
     private static readonly string TempPath = InMemoryFileSystem.DefaultTempPath;
 
     [Fact]
-    public void ValidateSettings_WhenIncludeIsEmpty_ThrowsArgumentOutOfRangeException()
-    {
-        // Arrange
-        var fileSystem = new InMemoryFileSystem();
-        var service = new FileSystemService(fileSystem);
-        var settings = CreateSettings(fileSystem, include: []);
-
-        // Act
-        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => service.ValidateSettings(settings));
-
-        // Assert
-        Assert.Contains("At least one include pattern must be specified.", exception.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void GetPaths_EnumeratesMatchingFilesAndDirectories()
     {
         // Arrange

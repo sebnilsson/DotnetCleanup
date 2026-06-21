@@ -37,11 +37,6 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v6
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v5
-      with:
-        global-json-file: global.json
-
     - name: Resolve Package Version
       id: version
       env:

@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=https://json.schemastore.org/github-action.json
 
 name: .NET Build and Test
-description: Restore, build, and test the repository with Docker-backed integration tests.
+description: Set up the .NET SDK, then restore, build, and test the repository with Docker-backed integration tests.
 
 inputs:
   msbuild-properties:
@@ -16,6 +16,11 @@ inputs:
 runs:
   using: composite
   steps:
+  - name: Setup .NET
+    uses: actions/setup-dotnet@v5
+    with:
+      global-json-file: global.json
+
   - name: Docker Info
     shell: pwsh
     run: docker version && docker info
